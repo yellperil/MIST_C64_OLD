@@ -28,37 +28,29 @@ use IEEE.std_logic_unsigned.ALL;
 use IEEE.numeric_std.all;
 
 entity c1541_sd is
-port(
-  clk32 : in std_logic;
-  clk18: in std_logic;
-	reset : in std_logic;
-	
+port
+(
+	clk32       : in std_logic;
+	clk18       : in std_logic;
+	reset       : in std_logic;
+
 	disk_change : in std_logic;
-	disk_num : in std_logic_vector(9 downto 0);
+	disk_num    : in std_logic_vector(9 downto 0);
 
-	iec_atn_i  : in std_logic;
-	iec_data_i : in std_logic;
-	iec_clk_i  : in std_logic;
-	
-	iec_atn_o  : out std_logic;
-	iec_data_o : out std_logic;
-	iec_clk_o  : out std_logic;
-	
-	sd_dat  : in std_logic;
-	sd_dat3 : buffer std_logic;
-	sd_cmd  : buffer std_logic;
-	sd_clk  : buffer std_logic;
+	iec_atn_i   : in std_logic;
+	iec_data_i  : in std_logic;
+	iec_clk_i   : in std_logic;
 
-  dbg_adr_fetch   : buffer std_logic_vector(15 downto 0);
-  dbg_cpu_irq     : out std_logic;
-	dbg_track_dbl   : out std_logic_vector(6 downto 0);
-	dbg_sync_n      : out std_logic;
-	dbg_byte_n      : out std_logic;
-	dbg_sd_busy     : out std_logic;
-	dbg_sd_state    : out std_logic_vector(7 downto 0);
-  dbg_read_sector : out std_logic_vector(4 downto 0); 
-	
-  led : out std_logic_vector(7 downto 0)
+	iec_atn_o   : out std_logic;
+	iec_data_o  : out std_logic;
+	iec_clk_o   : out std_logic;
+
+	sd_dat      : in std_logic;
+	sd_dat3     : buffer std_logic;
+	sd_cmd      : buffer std_logic;
+	sd_clk      : buffer std_logic;
+
+	led         : out std_logic_vector(7 downto 0)
 );
 end c1541_sd;
 
@@ -69,83 +61,73 @@ signal ram_addr       : unsigned(12 downto 0);
 signal ram_di         : unsigned( 7 downto 0);
 signal ram_do         : unsigned( 7 downto 0);
 signal ram_we         : std_logic;
-
-signal do     : std_logic_vector(7 downto 0); -- disk read data
-signal mode   : std_logic;                    -- read/write
-signal stp    : std_logic_vector(1 downto 0); -- stepper motor control
-signal stp_r  : std_logic_vector(1 downto 0); -- stepper motor control
-signal mtr    : std_logic ;                   -- stepper motor on/off
-signal freq   : std_logic_vector(1 downto 0); -- motor (gcr_bit) frequency
-signal sync_n : std_logic;                    -- reading SYNC bytes
-signal byte_n : std_logic;                    -- byte ready
-signal act    : std_logic;                    -- activity LED
-
-signal track_dbl  : std_logic_vector(6 downto 0);
-signal sd_busy    : std_logic;
-
-signal track_read_adr  : std_logic_vector(12 downto 0);
-
-signal dbg_sector : std_logic_vector(4 downto 0); 
+signal do             : std_logic_vector(7 downto 0); -- disk read data
+signal mode           : std_logic;                    -- read/write
+signal stp            : std_logic_vector(1 downto 0); -- stepper motor control
+signal stp_r          : std_logic_vector(1 downto 0); -- stepper motor control
+signal mtr            : std_logic ;                   -- stepper motor on/off
+signal freq           : std_logic_vector(1 downto 0); -- motor (gcr_bit) frequency
+signal sync_n         : std_logic;                    -- reading SYNC bytes
+signal byte_n         : std_logic;                    -- byte ready
+signal act            : std_logic;                    -- activity LED
+signal track_dbl      : std_logic_vector(6 downto 0);
+signal sd_busy        : std_logic;
+signal track_read_adr : std_logic_vector(12 downto 0);
 
 begin
 	
-  c1541 : entity work.c1541_logic
-  generic map
-  (
-    DEVICE_SELECT => "00"
-  )
-  port map
-  (
-    clk_32M => clk32,
-    reset => reset,
+	c1541 : entity work.c1541_logic
+	generic map
+	(
+		DEVICE_SELECT => "00"
+	)
+	port map
+	(
+		clk_32M => clk32,
+		reset => reset,
 
-    -- serial bus
-    sb_data_oe => iec_data_o,
-    sb_clk_oe  => iec_clk_o,
-    sb_atn_oe  => iec_atn_o,
+		-- serial bus
+		sb_data_oe => iec_data_o,
+		sb_clk_oe  => iec_clk_o,
+		sb_atn_oe  => iec_atn_o,
 		
-    sb_data_in => not iec_data_i,
-    sb_clk_in  => not iec_clk_i,
-    sb_atn_in  => not iec_atn_i,
+		sb_data_in => not iec_data_i,
+		sb_clk_in  => not iec_clk_i,
+		sb_atn_in  => not iec_atn_i,
     
-    -- drive-side interface
-    ds              => "00",                  -- device select
-    di              => do,                    -- disk write data
-    do              => open,                  -- disk read data
-    mode            => mode,                  -- read/write
-    stp             => stp,                   -- stepper motor control
-    mtr             => mtr,                   -- motor on/off
-    freq            => freq,                  -- motor frequency
-    sync_n          => sync_n,                -- reading SYNC bytes
-    byte_n          => byte_n,                -- byte ready
-    wps_n           => '0',                   -- write-protect sense
-    tr00_sense_n    => '1',                   -- track 0 sense (unused?)
-    act             => act,                   -- activity LED
-		
-		dbg_adr_fetch => dbg_adr_fetch,
-		dbg_cpu_irq   => dbg_cpu_irq
-  );
+		-- drive-side interface
+		ds              => "00",   -- device select
+		di              => do,     -- disk write data
+		do              => open,   -- disk read data
+		mode            => mode,   -- read/write
+		stp             => stp,    -- stepper motor control
+		mtr             => mtr,    -- motor on/off
+		freq            => freq,   -- motor frequency
+		sync_n          => sync_n, -- reading SYNC bytes
+		byte_n          => byte_n, -- byte ready
+		wps_n           => '0',    -- write-protect sense
+		tr00_sense_n    => '1',    -- track 0 sense (unused?)
+		act             => act     -- activity LED
+	);
 
-  floppy : entity work.gcr_floppy
-  port map
-  (
-    clk32  => clk32,
+	floppy : entity work.gcr_floppy
+	port map
+	(
+		clk32  => clk32,
 
-    do     => do,     -- disk read data
-    mode   => mode,   -- read/write
-    stp    => stp,    -- stepper motor control
-    mtr    => mtr,    -- stepper motor on/off
-    freq   => freq,   -- motor (gcr_bit) frequency
-    sync_n => sync_n, -- reading SYNC bytes
-    byte_n => byte_n, -- byte ready
+		do     => do,     -- disk read data
+		mode   => mode,   -- read/write
+		stp    => stp,    -- stepper motor control
+		mtr    => mtr,    -- stepper motor on/off
+		freq   => freq,   -- motor (gcr_bit) frequency
+		sync_n => sync_n, -- reading SYNC bytes
+		byte_n => byte_n, -- byte ready
 		
 		track       => track_dbl(6 downto 1),
 		track_adr   => track_read_adr,
 		track_data  => std_logic_vector(ram_do), 	
-		track_ready => not sd_busy,
-		
-		dbg_sector  => dbg_sector
-  );
+		track_ready => not sd_busy
+	);
 	
 	process (clk32)
 	begin
@@ -196,17 +178,17 @@ begin
   
 		CLK_14M => clk18,
 		reset   => reset, 
-		busy => sd_busy,
-	
-		dbg_state => dbg_sd_state
+		busy => sd_busy
 	);
 	
 	track_buffer : entity work.gen_ram
-	generic map(
+	generic map
+	(
 		dWidth => 8,
 		aWidth => 13
 	)
-	port map(
+	port map
+	(
 		clk  => not clk18,
 		we   => ram_we,
 		addr => ram_addr,
@@ -218,21 +200,10 @@ begin
 --		ram_addr <= ram_write_addr when '1', unsigned('0'&track_read_adr) when others; 
 		ram_addr <= ram_write_addr when '1', unsigned(track_read_adr) when others; 
 
-	process (clk32)
-	begin
-		if rising_edge(clk32) then
-			if dbg_adr_fetch = X"F4D7" then
-				dbg_read_sector <= dbg_sector;
-			end if;
-		end if;
-	end process;
-
-	led(0)          <= mode; -- read/write
-	led(2 downto 1) <= stp;  -- stepper motor control
-	led(3)          <= mtr;  -- stepper motor on/off
-	led(5 downto 4) <= freq; -- motor frequency
-	led(6)          <= act;  -- activity LED
+	led(0)          <= mode;     -- read/write
+	led(2 downto 1) <= stp;      -- stepper motor control
+	led(3)          <= mtr;      -- stepper motor on/off
+	led(5 downto 4) <= freq;     -- motor frequency
+	led(6)          <= act;      -- activity LED
 	led(7)          <= sd_busy;  -- SD read	
-	
-	dbg_track_dbl <= track_dbl;
 end struct;
