@@ -66,7 +66,6 @@ architecture gideon of adsr_multi is
     
     type state_array_t is array(natural range <>) of unsigned(29 downto 0);
     signal state_array : state_array_t(0 to g_num_voices-1) := (others => (others => '0'));
-    signal voice_dbg : t_voice_debug_array(0 to g_num_voices-1);
 begin
     env_out   <= enveloppe;
     env_state <= std_logic_vector(state);
@@ -112,7 +111,6 @@ begin
         variable log_div      : unsigned(4 downto 0);
         variable do_count_15  : std_logic;
         variable do_count_5   : std_logic;
-        variable voice_x      : integer;
     begin
         if rising_edge(clock) then
             cur_state := state_array(0)(1 downto 0);
@@ -210,18 +208,6 @@ begin
                 state_array(g_num_voices-1) <= next_pre5 & next_pre15 & next_env & next_state;
                 enveloppe <= next_env;
                 state <= next_state;
-
-                voice_x := to_integer(voice_i);
-                voice_dbg(voice_x).state     <= next_state;
-                voice_dbg(voice_x).enveloppe <= next_env;
-                voice_dbg(voice_x).pre15     <= next_pre15;
-                voice_dbg(voice_x).pre5      <= next_pre5;
-                voice_dbg(voice_x).presc     <= presc_val;
-                voice_dbg(voice_x).gate      <= gate;
-                voice_dbg(voice_x).attack    <= attack;
-                voice_dbg(voice_x).decay     <= decay;
-                voice_dbg(voice_x).sustain   <= sustain;
-                voice_dbg(voice_x).release   <= release;
             end if;
 
             if reset='1' then

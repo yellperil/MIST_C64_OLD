@@ -309,14 +309,11 @@ always@(negedge sd_sck) begin
 end
 
 // spi receiver  
-reg illegal_write_state /* synthesis noprune */;
-
 always @(posedge sd_sck or posedge sd_cs) begin
 	// cs is active low
 	if(sd_cs == 1) begin
 		bit_cnt <= 3'd0;
 	end else begin 
-		illegal_write_state <= 1'b0;
 		new_cmd_rcvd <= 1'b0;
 		buffer_write_strobe <= 1'b0;
 		req_io_wr <= 1'b0;
@@ -466,8 +463,7 @@ always @(posedge sd_sck or posedge sd_cs) begin
 					if(wr_io_ack)
 						write_state <= WR_STATE_IDLE;
 						
-				default:
-					illegal_write_state <= 1'b1;
+				default:;
 			endcase
 		end
 	end

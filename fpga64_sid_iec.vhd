@@ -206,12 +206,6 @@ architecture rtl of fpga64_sid_iec is
 	signal colorQ : unsigned(3 downto 0);
 	signal colorData : unsigned(3 downto 0);
 
-	signal cpuDebugOpcode: unsigned(7 downto 0);
-	signal cpuDebugPc: unsigned(15 downto 0);
-	signal cpuDebugA: unsigned(7 downto 0);
-	signal cpuDebugX: unsigned(7 downto 0);
-	signal cpuDebugY: unsigned(7 downto 0);
-	signal cpuDebugS: unsigned(7 downto 0);
 	signal cpuStep : std_logic;
 	signal traceKey : std_logic;
 	signal trace2Key : std_logic;
@@ -606,12 +600,12 @@ begin
 			diIO => "00010111",
 			doIO => cpuIO,
 
-			debugOpcode => cpuDebugOpcode,
-			debugPc => cpuDebugPc,
-			debugA => cpuDebugA,
-			debugX => cpuDebugX,
-			debugY => cpuDebugY,
-			debugS => cpuDebugS
+			debugOpcode => open,
+			debugPc => open,
+			debugA => open,
+			debugX => open,
+			debugY => open,
+			debugS => open
 		);
 
 -- -----------------------------------------------------------------------
@@ -640,7 +634,7 @@ begin
 			pbo => cia1_pbi,
 			
 			videoKey => videoKey,
-			traceKey => traceKey,
+			traceKey => open,
 			trace2Key => trace2Key,
 			
 			disk_num => disk_num,

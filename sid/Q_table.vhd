@@ -24,7 +24,7 @@ architecture Gideon of Q_table is
 
     type t_18_bit_array is array(natural range <>) of signed(17 downto 0);
     function create_factors(max_Q: real) return t_18_bit_array is
-        variable critical : real := 0.70710678; -- no resonance at 0.5*sqrt(2)
+        constant critical : real := 0.70710678; -- no resonance at 0.5*sqrt(2)
         variable q_step   : real;
         variable q        : real;
         variable scaled   : real;

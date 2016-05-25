@@ -77,7 +77,6 @@ architecture structural of sid_top is
     signal volume_l      : unsigned(3 downto 0);
     signal filter_co_l   : unsigned(10 downto 0);
     signal filter_res_l  : unsigned(3 downto 0);
-    signal filter_ex_l   : std_logic;
     signal filter_hp_l   : std_logic;    
     signal filter_bp_l   : std_logic;
     signal filter_lp_l   : std_logic;
@@ -86,7 +85,6 @@ architecture structural of sid_top is
     signal volume_r      : unsigned(3 downto 0);
     signal filter_co_r   : unsigned(10 downto 0);
     signal filter_res_r  : unsigned(3 downto 0);
-    signal filter_ex_r   : std_logic;
     signal filter_hp_r   : std_logic;    
     signal filter_bp_r   : std_logic;
     signal filter_lp_r   : std_logic;
@@ -166,7 +164,7 @@ begin
         volume_l    => volume_l,
         filter_co_l => filter_co_l,
         filter_res_l=> filter_res_l,
-        filter_ex_l => filter_ex_l,
+        filter_ex_l => open,
         filter_hp_l => filter_hp_l,    
         filter_bp_l => filter_bp_l,
         filter_lp_l => filter_lp_l,
@@ -175,7 +173,7 @@ begin
         volume_r    => volume_r,
         filter_co_r => filter_co_r,
         filter_res_r=> filter_res_r,
-        filter_ex_r => filter_ex_r,
+        filter_ex_r => open,
         filter_hp_r => filter_hp_r,    
         filter_bp_r => filter_bp_r,
         filter_lp_r => filter_lp_r,
@@ -338,7 +336,7 @@ begin
         volume      => volume_l,
         
         mixed_out   => mixed_out_L,
-        valid_out   => valid_mix );
+        valid_out   => open );
 
     r_right_filter: if g_num_voices > 8 generate
         i_filt: entity work.sid_filter

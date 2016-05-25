@@ -79,25 +79,28 @@ end c64_mist;
 
 architecture struct of c64_mist is
 
-component sdram is
+component sram is
 port (
-   -- interface to the MT48LC16M16 chip
-   sd_addr      :       out     std_logic_vector(12 downto 0);
-   sd_cs        :       out     std_logic;
-   sd_ba        :       out     std_logic_vector(1 downto 0);
-   sd_we        :       out     std_logic;
-   sd_ras       :       out     std_logic;
-   sd_cas       :       out     std_logic;
+	init       : in    std_logic;
+	clk        : in    std_logic;
+   SDRAM_DQ   : inout std_logic_vector(15 downto 0);
+   SDRAM_A    : out   std_logic_vector(12 downto 0);
+   SDRAM_DQML : out   std_logic;
+   SDRAM_DQMH : out   std_logic;
+   SDRAM_BA   : out   std_logic_vector(1 downto 0);
+   SDRAM_nCS  : out   std_logic;
+   SDRAM_nWE  : out   std_logic;
+   SDRAM_nRAS : out   std_logic;
+   SDRAM_nCAS : out   std_logic;
+   SDRAM_CKE  : out   std_logic;
 
-   -- system interface
-   clk          :  in    std_logic;
-   init         :  in    std_logic;
-
-   -- cpu/chipset interface
-   addr         :  in    std_logic_vector(15 downto 0);
-   refresh      :  in    std_logic;
-   we           :  in    std_logic;
-   ce           :  in    std_logic
+   wtbt       : in    std_logic_vector(1 downto 0);
+   addr       : in    std_logic_vector(24 downto 0);
+   dout       : out   std_logic_vector(15 downto 0);
+   din        : in    std_logic_vector(15 downto 0);
+   we         : in    std_logic;
+   rd         : in    std_logic;
+   ready      : out   std_logic
 );
 end component;
 
@@ -187,7 +190,7 @@ component sd_card
 ---------
 
 component osd
-  generic ( OSD_COLOR : integer );
+  generic ( OSD_COLOR : std_logic_vector(2 downto 0) );
   port ( pclk         : in std_logic;
       sck, sdi, ss    : in std_logic;
 		
@@ -265,9 +268,7 @@ end component sigma_delta_dac;
 
 	signal pll_locked_in: std_logic_vector(1 downto 0);
 	signal pll_locked: std_logic;
-	signal clk_ntsc: std_logic;
 	signal c1541_reset: std_logic;
-	signal idle: std_logic;
 	signal ces: std_logic_vector(3 downto 0);
 	signal iec_cycle: std_logic;
 	signal iec_cycleD: std_logic;
@@ -343,13 +344,12 @@ end component sigma_delta_dac;
 
 	alias c64_addr_int : unsigned is unsigned(c64_addr);
 	alias c64_data_in_int   : unsigned is unsigned(c64_data_in);
+	signal c64_data_in16: std_logic_vector(15 downto 0);
 	alias c64_data_out_int   : unsigned is unsigned(c64_data_out);
 
-	signal clk64 : std_logic;
+	signal clk_ram : std_logic;
 	signal clk32 : std_logic;
-	signal clk32_fd : std_logic;
 	signal clk16 : std_logic;
-	signal clk18_fd : std_logic;
 	signal clk8 : std_logic;
 	signal osdclk : std_logic;
 	signal clkdiv : std_logic_vector(9 downto 0);
@@ -378,7 +378,6 @@ end component sigma_delta_dac;
 	signal reset_counter    : std_logic_vector(7 downto 0);
 	signal reset_n          : std_logic;
 	
-	signal disk_num         : std_logic_vector(7 downto 0);
 	signal led_disk         : std_logic_vector(7 downto 0);
 
 begin
@@ -386,12 +385,6 @@ begin
 		-- 1541 activity led
 		LED <= not led_disk(6);
 
-		SDRAM_DQ(15 downto 8) <= (others => 'Z') when sdram_we='0' else (others => '0');
-		SDRAM_DQ(7 downto 0) <= (others => 'Z') when sdram_we='0' else sdram_data_out;
-		
-		-- read from sdram
-		c64_data_in <= SDRAM_DQ(7 downto 0);
-		
 		iec_cycle <= '1' when ces = "1011" else '0';
 		
         -- User io
@@ -533,7 +526,7 @@ begin
 	-- route video through osd
 	osdclk <= clk32 when tv15Khz_mode='0' else clk16;
    osd_d : osd
-		generic map (OSD_COLOR => 4)
+		generic map (OSD_COLOR => "100")
    port map (
 		  
       pclk => osdclk,
@@ -551,55 +544,23 @@ begin
       green_out => VGA_G,
       blue_out => VGA_B
    );
-		  
+
 	hsync_osd <= hsync_out when tv15Khz_mode='1' else hsync_sd;
 	vsync_osd <= vsync_out when tv15Khz_mode='1' else vsync_sd;
 	ntsc_init_mode <= status(2);
 
-	pll_locked <= pll_locked_in(0) and pll_locked_in(1);
+	pll_locked <= pll_locked_in(0);
 	
---	clk_32_18 : entity work.pll27_to_32_and_18
---	port map(
---		inclk0 => CLOCK_27(0),
---		c0 => clk64,
---		c1 => SDRAM_CLK,
---		locked => pll_locked_in(0)
---	);
-
-   -- pll to generate floppy clock
-	clk_c1541 : entity work.pll_32
-	port map(
-		inclk0 => CLOCK_27(0),
-		c0 => clk32_fd,
-		c1 => clk18_fd,
-		locked => pll_locked_in(1)
-	);
- 
    -- second pll to generate 64mhz clock and phase shifted ram clock	
 	clk_c64 : entity work.pll_27_to_64
 	port map(
 		inclk0 => CLOCK_27(0),
-		inclk1 => clk_ntsc,
-		clkswitch => ntsc_init_mode,
-		c0 => clk64,
+		c0 => clk_ram,
 		c1 => SDRAM_CLK,
+		c2 => clk32,
 		locked => pll_locked_in(0)
 	);
 
-	-- first pll used to generate base clock for ntsc mode
-	clk_ntsc_base : entity work.pll_pal_ntsc
-	port map(
-	inclk0 => CLOCK_27(0),
-		c0 => clk_ntsc
-	);
-
-	process(clk64)
-	begin
-		if rising_edge(clk64) then
-			clk32 <= not clk32;
-		end if;
-	end process;
-	
 	process(clk32)
 	begin
 		if rising_edge(clk32) then
@@ -618,28 +579,33 @@ begin
 		end if;
 	end process;
 
-	-- clock is always enabled and memory is never masked as we only
-	-- use one byte
-	SDRAM_CKE <= '1';
-	SDRAM_DQML <= '0';
-	SDRAM_DQMH <= '0';
-	
-	sdr: sdram port map(
-		sd_addr => SDRAM_A,
-		sd_ba => SDRAM_BA,
-		sd_cs => SDRAM_nCS,
-		sd_we => SDRAM_nWE,
-		sd_ras => SDRAM_nRAS,
-		sd_cas => SDRAM_nCAS,
-
-		clk => clk64,		
-		addr => sdram_addr,
+	sdr: sram port map
+	(
+		clk => clk_ram,
 		init => not pll_locked,
+
+		SDRAM_DQ => SDRAM_DQ,
+		SDRAM_A => SDRAM_A,
+		SDRAM_DQML => SDRAM_DQML,
+		SDRAM_DQMH => SDRAM_DQMH,
+		SDRAM_BA => SDRAM_BA,
+		SDRAM_nCS => SDRAM_nCS,
+		SDRAM_nWE => SDRAM_nWE,
+		SDRAM_nRAS => SDRAM_nRAS,
+		SDRAM_nCAS => SDRAM_nCAS,
+		SDRAM_CKE => SDRAM_CKE,
+
+		wtbt => "00",
+		addr => "000000000" & sdram_addr,
+		dout => c64_data_in16,
+		din => "00000000" & sdram_data_out,
 		we => sdram_we,
-		refresh => idle,       -- refresh ram in idle state
-		ce => sdram_ce
+		rd => sdram_ce,
+		ready => open
 	);
 	
+	c64_data_in <= c64_data_in16(7 downto 0);
+
 	-- decode audio
    dac_l : sigma_delta_dac
    port map (
@@ -686,7 +652,7 @@ begin
 		ces => ces,
 		SIDclk => open,
 		still => open,
-		idle => idle,
+		idle => open,
 		audio_data => audio_data,
 		extfilter_en => not status(6),
 		iec_data_o => c64_iec_data_o,
@@ -695,7 +661,7 @@ begin
 		iec_data_i => not c64_iec_data_i,
 		iec_clk_i  => not c64_iec_clk_i,
 		iec_atn_i  => not c64_iec_atn_i,
-		disk_num => disk_num
+		disk_num => open
 	);
 
 	-- 
@@ -730,8 +696,8 @@ begin
 	c1541_sd : entity work.c1541_sd
 	port map
 	(
-    clk32 => clk32_fd,
-    clk18 => clk18_fd,
+    clk32 => clk32,
+    clk18 => clk32, -- MiST uses virtual SPI SD, so any clock can be used.
 	 reset => c1541_reset,
 
 	 disk_change => sd_change, 

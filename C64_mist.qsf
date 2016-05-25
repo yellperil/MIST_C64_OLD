@@ -197,7 +197,7 @@ set_global_assignment -name VHDL_FILE rom_c64_chargen.vhd
 set_global_assignment -name VHDL_FILE rom_c64_basic.vhd
 set_global_assignment -name VHDL_FILE rom_c64_kernal.vhd
 set_global_assignment -name VHDL_FILE fpga64_buslogic_roms_mmu.vhd
-set_global_assignment -name VERILOG_FILE sdram.v
+set_global_assignment -name SYSTEMVERILOG_FILE sram.sv
 set_global_assignment -name VHDL_FILE gen_rwram.vhd
 set_global_assignment -name VHDL_FILE gen_ram.vhd
 set_global_assignment -name VHDL_FILE sprom.vhd
