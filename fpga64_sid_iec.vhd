@@ -33,66 +33,66 @@ use IEEE.numeric_std.all;
 
 entity fpga64_sid_iec is
 	generic (
-		resetCycles: integer := 4095
+		resetCycles : integer := 4095
 	);
 	port(
-		clk32 : in std_logic;
-		reset_n : in std_logic;
+		clk32       : in  std_logic;
+		reset_n     : in  std_logic;
 
 		-- keyboard interface (use any ordinairy PS2 keyboard)
-		kbd_clk: in std_logic;
-		kbd_dat: in std_logic;
+		kbd_clk     : in  std_logic;
+		kbd_dat     : in  std_logic;
 
 		-- external memory
-		ramAddr: out unsigned(15 downto 0);
-		ramDataIn: in unsigned(7 downto 0);
-		ramDataOut: out unsigned(7 downto 0);
+		ramAddr     : out unsigned(15 downto 0);
+		ramDataIn   : in  unsigned(7 downto 0);
+		ramDataOut  : out unsigned(7 downto 0);
 
-		ramCE: out std_logic;
-		ramWe: out std_logic;
+		ramCE       : out std_logic;
+		ramWe       : out std_logic;
 
-		idle: out std_logic;
+		idle        : out std_logic;
 
 		-- VGA/SCART interface
-		ntscInitMode : in std_logic;
-		hsync: out std_logic;
-		vsync: out std_logic;
-		r : out unsigned(7 downto 0);
-		g : out unsigned(7 downto 0);
-		b : out unsigned(7 downto 0);
+		ntscInitMode: in  std_logic;
+		hsync       : out std_logic;
+		vsync       : out std_logic;
+		r           : out unsigned(7 downto 0);
+		g           : out unsigned(7 downto 0);
+		b           : out unsigned(7 downto 0);
 		
 		-- cartridge port
-		game : in std_logic;
-		exrom : in std_logic;
-		irq_n : inout std_logic;
-		nmi_n : inout std_logic;
-		dma_n : in std_logic;
-		ba : out std_logic;
+		game        : in  std_logic;
+		exrom       : in  std_logic;
+		irq_n       : inout std_logic;
+		nmi_n       : inout std_logic;
+		dma_n       : in  std_logic;
+		ba          : out std_logic;
 
 		-- joystick interface
-		joyA: in unsigned(5 downto 0);
-		joyB: in unsigned(5 downto 0);
+		joyA        : in  unsigned(5 downto 0);
+		joyB        : in  unsigned(5 downto 0);
 
 		-- serial port, for connection to pheripherals
-		serioclk : out std_logic;
-		ces : out std_logic_vector(3 downto 0);
+		serioclk    : out std_logic;
+		ces         : out std_logic_vector(3 downto 0);
 
 		--Connector to the SID
-		SIDclk: out std_logic;
-		still: out unsigned(15 downto 0);
-		audio_data : out std_logic_vector(17 downto 0);
-		extfilter_en : in std_logic;
+		SIDclk      : out std_logic;
+		still       : out unsigned(15 downto 0);
+		audio_data  : out std_logic_vector(17 downto 0);
+		extfilter_en: in  std_logic;
 
 		-- IEC
 		iec_data_o	: out std_logic;
-		iec_data_i	: in std_logic;
+		iec_data_i	: in  std_logic;
 		iec_clk_o	: out std_logic;
-		iec_clk_i	: in std_logic;
+		iec_clk_i	: in  std_logic;
 		iec_atn_o	: out std_logic;
-		iec_atn_i	: in std_logic;
+		iec_atn_i	: in  std_logic;
 		
-		disk_num : out std_logic_vector(7 downto 0);
-		dbg_num : out std_logic_vector(2 downto 0)
+		disk_num    : out std_logic_vector(7 downto 0);
+		dbg_num     : out std_logic_vector(2 downto 0)
 
 );
 end fpga64_sid_iec;

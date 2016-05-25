@@ -30,53 +30,74 @@ use IEEE.std_logic_1164.all;
 use IEEE.std_logic_unsigned.ALL;
 use IEEE.numeric_std.all;
 
-entity c64_mist is
-port(
+entity c64_mist is port
+(
 	-- Clocks
-   CLOCK_27        : in    std_logic_vector(1 downto 0);
+   CLOCK_27   : in    std_logic;
 
    -- LED
-   LED             : out   std_logic;
+   LED        : out   std_logic;
 
    -- VGA
-   VGA_R           : out   std_logic_vector(5 downto 0);
-   VGA_G           : out   std_logic_vector(5 downto 0);
-   VGA_B           : out   std_logic_vector(5 downto 0);
-   VGA_HS          : out   std_logic;
-   VGA_VS          : out   std_logic;
+   VGA_R      : out   std_logic_vector(5 downto 0);
+   VGA_G      : out   std_logic_vector(5 downto 0);
+   VGA_B      : out   std_logic_vector(5 downto 0);
+   VGA_HS     : out   std_logic;
+   VGA_VS     : out   std_logic;
 
    -- SDRAM
-   SDRAM_A         : out   std_logic_vector(12 downto 0);
-   SDRAM_DQ        : inout std_logic_vector(15 downto 0);
-   SDRAM_DQML      : out   std_logic;
-   SDRAM_DQMH      : out   std_logic;
-   SDRAM_nWE       : out   std_logic;
-   SDRAM_nCAS      : out   std_logic;
-   SDRAM_nRAS      : out   std_logic;
-   SDRAM_nCS       : out   std_logic;
-   SDRAM_BA        : out   std_logic_vector(1 downto 0);
-   SDRAM_CLK       : out   std_logic;
-   SDRAM_CKE       : out   std_logic;
+   SDRAM_A    : out   std_logic_vector(12 downto 0);
+   SDRAM_DQ   : inout std_logic_vector(15 downto 0);
+   SDRAM_DQML : out   std_logic;
+   SDRAM_DQMH : out   std_logic;
+   SDRAM_nWE  : out   std_logic;
+   SDRAM_nCAS : out   std_logic;
+   SDRAM_nRAS : out   std_logic;
+   SDRAM_nCS  : out   std_logic;
+   SDRAM_BA   : out   std_logic_vector(1 downto 0);
+   SDRAM_CLK  : out   std_logic;
+   SDRAM_CKE  : out   std_logic;
 
    -- AUDIO
-   AUDIO_L         : out   std_logic;
-   AUDIO_R         : out   std_logic;
+   AUDIO_L    : out   std_logic;
+   AUDIO_R    : out   std_logic;
 
    -- SPI interface to io controller
-   SPI_SCK         : in    std_logic;
-   SPI_DO          : inout std_logic;
-   SPI_DI          : in    std_logic;
-   SPI_SS2         : in    std_logic;
-   SPI_SS3         : in    std_logic;
-   SPI_SS4         : in    std_logic;
-   CONF_DATA0      : in    std_logic
+   SPI_SCK    : in    std_logic;
+   SPI_DO     : inout std_logic;
+   SPI_DI     : in    std_logic;
+   SPI_SS2    : in    std_logic;
+   SPI_SS3    : in    std_logic;
+   CONF_DATA0 : in    std_logic
 );
 end c64_mist;
 
 architecture struct of c64_mist is
 
-component sram is
-port (
+component sdram is port
+(
+   -- interface to the MT48LC16M16 chip
+   sd_addr    : out   std_logic_vector(12 downto 0);
+   sd_cs      : out   std_logic;
+   sd_ba      : out   std_logic_vector(1 downto 0);
+   sd_we      : out   std_logic;
+   sd_ras     : out   std_logic;
+   sd_cas     : out   std_logic;
+
+   -- system interface
+   clk        : in    std_logic;
+   init       : in    std_logic;
+
+   -- cpu/chipset interface
+   addr       : in    std_logic_vector(15 downto 0);
+   refresh    : in    std_logic;
+   we         : in    std_logic;
+   ce         : in    std_logic
+);
+end component;
+
+component sram is port
+(
 	init       : in    std_logic;
 	clk        : in    std_logic;
    SDRAM_DQ   : inout std_logic_vector(15 downto 0);
@@ -122,38 +143,37 @@ begin
   return rval; 
 end function; 
 
-component user_io
-generic ( STRLEN : integer := 0 );
-port (
-      SPI_CLK, SPI_SS_IO, SPI_MOSI :in std_logic;
-      SPI_MISO : out std_logic;
-      conf_str : in std_logic_vector(8*STRLEN-1 downto 0);
+component user_io generic ( STRLEN : integer := 0 ); port
+(
+	SPI_CLK, SPI_SS_IO, SPI_MOSI :in std_logic;
+	SPI_MISO     : out std_logic;
+	conf_str     : in  std_logic_vector(8*STRLEN-1 downto 0);
 
-      switches : out std_logic_vector(1 downto 0);
-      buttons : out std_logic_vector(1 downto 0);
-      scandoubler_disable : out std_logic;
+	switches     : out std_logic_vector(1 downto 0);
+	buttons      : out std_logic_vector(1 downto 0);
+	scandoubler_disable : out std_logic;
 
-      joystick_0 : out std_logic_vector(7 downto 0);
-      joystick_1 : out std_logic_vector(7 downto 0);
-      joystick_analog_0 : out std_logic_vector(15 downto 0);
-      joystick_analog_1 : out std_logic_vector(15 downto 0);
-      status : out std_logic_vector(7 downto 0);
+	joystick_0   : out std_logic_vector(7 downto 0);
+	joystick_1   : out std_logic_vector(7 downto 0);
+	joystick_analog_0 : out std_logic_vector(15 downto 0);
+	joystick_analog_1 : out std_logic_vector(15 downto 0);
+	status       : out std_logic_vector(7 downto 0);
 
-      sd_lba : in std_logic_vector(31 downto 0);
-      sd_rd : in std_logic;
-      sd_wr : in std_logic;
-      sd_ack : out std_logic;
-      sd_conf : in std_logic;
-      sd_sdhc : in std_logic;
-      sd_dout : out std_logic_vector(7 downto 0);
-      sd_dout_strobe : out std_logic;
-      sd_din : in std_logic_vector(7 downto 0);
-      sd_din_strobe : out std_logic;
-      sd_change : out std_logic;
+	sd_lba       : in  std_logic_vector(31 downto 0);
+	sd_rd        : in  std_logic;
+	sd_wr        : in  std_logic;
+	sd_ack       : out std_logic;
+	sd_conf      : in  std_logic;
+	sd_sdhc      : in  std_logic;
+	sd_dout      : out std_logic_vector(7 downto 0);
+	sd_dout_strobe: out std_logic;
+	sd_din       : in  std_logic_vector(7 downto 0);
+	sd_din_strobe: out std_logic;
+	sd_change    : out std_logic;
 
-      ps2_clk : in std_logic;
-      ps2_kbd_clk : out std_logic;
-      ps2_kbd_data : out std_logic
+	ps2_clk      : in  std_logic;
+	ps2_kbd_clk  : out std_logic;
+	ps2_kbd_data : out std_logic
 );
 end component user_io;
 
@@ -161,54 +181,55 @@ end component user_io;
 -- sd card
 ---------
 
-component sd_card
-   port (  io_lba       : out std_logic_vector(31 downto 0);
-           io_rd         : out std_logic;
-           io_wr         : out std_logic;
-           io_ack        : in std_logic;
-           io_sdhc       : out std_logic;
-           io_conf       : out std_logic;
-           io_din        : in std_logic_vector(7 downto 0);
-           io_din_strobe : in std_logic;
-           io_dout       : out std_logic_vector(7 downto 0);
-           io_dout_strobe : in std_logic;
-           allow_sdhc    : in std_logic;
-                          
-           sd_cs                :       in std_logic;
-           sd_sck       :       in std_logic;
-           sd_sdi       :       in std_logic;
-           sd_sdo       :       out std_logic
-  );
-  end component sd_card;
+component sd_card port
+(
+	io_lba    : out std_logic_vector(31 downto 0);
+	io_rd     : out std_logic;
+	io_wr     : out std_logic;
+	io_ack    : in  std_logic;
+	io_sdhc   : out std_logic;
+	io_conf   : out std_logic;
+	io_din    : in  std_logic_vector(7 downto 0);
+	io_din_strobe: in  std_logic;
+	io_dout   : out std_logic_vector(7 downto 0);
+	io_dout_strobe : in std_logic;
+	allow_sdhc: in  std_logic;
+
+	sd_cs     : in  std_logic;
+	sd_sck    : in  std_logic;
+	sd_sdi    : in  std_logic;
+	sd_sdo    : out std_logic
+);
+end component sd_card;
 
 ---------
 -- OSD
 ---------
 
-component osd
-  generic ( OSD_COLOR : std_logic_vector(2 downto 0) );
-  port ( pclk         : in std_logic;
-      sck, sdi, ss    : in std_logic;
+component osd generic ( OSD_COLOR : std_logic_vector(2 downto 0)); port
+(
+	pclk      : in std_logic;
+	sck, sdi, ss : in std_logic;
 		
-      -- VGA signals coming from core
-      red_in          : in std_logic_vector(5 downto 0);
-      green_in        : in std_logic_vector(5 downto 0);
-      blue_in         : in std_logic_vector(5 downto 0);
-      hs_in           : in std_logic;
-      vs_in           : in std_logic;
+	-- VGA signals coming from core
+	red_in    : in std_logic_vector(5 downto 0);
+	green_in  : in std_logic_vector(5 downto 0);
+	blue_in   : in std_logic_vector(5 downto 0);
+	hs_in     : in std_logic;
+	vs_in     : in std_logic;
 
-      -- VGA signals going to video connector
-      red_out         : out std_logic_vector(5 downto 0);
-      green_out       : out std_logic_vector(5 downto 0);
-      blue_out        : out std_logic_vector(5 downto 0)
+	-- VGA signals going to video connector
+	red_out   : out std_logic_vector(5 downto 0);
+	green_out : out std_logic_vector(5 downto 0);
+	blue_out  : out std_logic_vector(5 downto 0)
 );
 end component osd;
 
 ---------
 -- Scan doubler
 ---------
-component scandoubler is
-port (
+component scandoubler is port
+(
 	clk_x2    : in std_logic;
 	scanlines : in std_logic_vector(1 downto 0);
 
@@ -232,21 +253,21 @@ end component;
 -- data_io
 ----------
 
-component data_io
-  port ( 
-		-- io controller spi interface
-		sck:   in std_logic;
-      ss:    in std_logic;
-      sdi:   in std_logic;
+component data_io port
+(
+	-- io controller spi interface
+	sck       : in  std_logic;
+	ss        : in  std_logic;
+	sdi       : in  std_logic;
 
-		downloading: out std_logic;
-		size: out std_logic_vector(15 downto 0);
+	downloading: out std_logic;
+	size      : out std_logic_vector(15 downto 0);
 		
-      -- external ram interface
-      clk:  in std_logic;
-		wr:   out std_logic;
-		a:    out std_logic_vector(15 downto 0);
-		d:    out std_logic_vector(7 downto 0)
+	-- external ram interface
+	clk       : in  std_logic;
+	wr        : out std_logic;
+	a         : out std_logic_vector(15 downto 0);
+	d         : out std_logic_vector(7 downto 0)
 );
 end component data_io;
 
@@ -254,17 +275,20 @@ end component data_io;
 -- audio
 ---------
 
-component sigma_delta_dac
-  port ( CLK      : in std_logic;
-			RESET    : in std_logic;
-         DACin    : in std_logic_vector(14 downto 0);
-			DACout   : out std_logic
+component sigma_delta_dac port
+(
+	CLK      : in std_logic;
+	RESET    : in std_logic;
+	DACin    : in std_logic_vector(14 downto 0);
+	DACout   : out std_logic
 );
+
 end component sigma_delta_dac;
 
 	signal pll_locked_in: std_logic_vector(1 downto 0);
 	signal pll_locked: std_logic;
 	signal c1541_reset: std_logic;
+	signal idle: std_logic;
 	signal ces: std_logic_vector(3 downto 0);
 	signal iec_cycle: std_logic;
 	signal iec_cycleD: std_logic;
@@ -445,7 +469,7 @@ begin
 	sdram_addr <= c64_addr when iec_cycle='0' else ioctl_ram_addr;
 	sdram_data_out <= c64_data_out when iec_cycle='0' else ioctl_ram_data;
 	-- ram_we and ce are active low
-	sdram_ce <= not ram_ce when iec_cycle='0' else '0';
+	sdram_ce <= not ram_ce when iec_cycle='0' else ioctl_iec_cycle_used;
 	sdram_we <= not ram_we when iec_cycle='0' else ioctl_iec_cycle_used;
 
    -- address
@@ -545,16 +569,14 @@ begin
 	vsync_osd <= vsync_out when tv15Khz_mode='1' else vsync_sd;
 	ntsc_init_mode <= status(2);
 
-	pll_locked <= pll_locked_in(0);
-	
-   -- second pll to generate 64mhz clock and phase shifted ram clock	
-	clk_c64 : entity work.pll_27_to_64
+   -- second  to generate 64mhz clock and phase shifted ram clock	
+	clk_c64 : entity work.pll
 	port map(
-		inclk0 => CLOCK_27(0),
+		inclk0 => CLOCK_27,
 		c0 => clk_ram,
 		c1 => SDRAM_CLK,
 		c2 => clk32,
-		locked => pll_locked_in(0)
+		locked => pll_locked
 	);
 
 	process(clk32)
@@ -575,33 +597,33 @@ begin
 		end if;
 	end process;
 
-	sdr: sram port map
-	(
-		clk => clk_ram,
+	SDRAM_DQ(15 downto 8) <= (others => 'Z') when sdram_we='0' else (others => '0');
+	SDRAM_DQ(7 downto 0) <= (others => 'Z') when sdram_we='0' else sdram_data_out;
+		
+	-- read from sdram
+	c64_data_in <= SDRAM_DQ(7 downto 0);
+	-- clock is always enabled and memory is never masked as we only
+	-- use one byte
+	SDRAM_CKE <= '1';
+	SDRAM_DQML <= '0';
+	SDRAM_DQMH <= '0';
+	
+	sdr: sdram port map(
+		sd_addr => SDRAM_A,
+		sd_ba => SDRAM_BA,
+		sd_cs => SDRAM_nCS,
+		sd_we => SDRAM_nWE,
+		sd_ras => SDRAM_nRAS,
+		sd_cas => SDRAM_nCAS,
+
+		clk => clk_ram,		
+		addr => sdram_addr,
 		init => not pll_locked,
-
-		SDRAM_DQ => SDRAM_DQ,
-		SDRAM_A => SDRAM_A,
-		SDRAM_DQML => SDRAM_DQML,
-		SDRAM_DQMH => SDRAM_DQMH,
-		SDRAM_BA => SDRAM_BA,
-		SDRAM_nCS => SDRAM_nCS,
-		SDRAM_nWE => SDRAM_nWE,
-		SDRAM_nRAS => SDRAM_nRAS,
-		SDRAM_nCAS => SDRAM_nCAS,
-		SDRAM_CKE => SDRAM_CKE,
-
-		wtbt => "00",
-		addr => "000000000" & sdram_addr,
-		dout => c64_data_in16,
-		din => "00000000" & sdram_data_out,
 		we => sdram_we,
-		rd => sdram_ce,
-		ready => open
+		refresh => idle,       -- refresh ram in idle state
+		ce => sdram_ce
 	);
 	
-	c64_data_in <= c64_data_in16(7 downto 0);
-
 	-- decode audio
    dac_l : sigma_delta_dac
    port map (
@@ -648,7 +670,7 @@ begin
 		ces => ces,
 		SIDclk => open,
 		still => open,
-		idle => open,
+		idle => idle,
 		audio_data => audio_data,
 		extfilter_en => not status(6),
 		iec_data_o => c64_iec_data_o,

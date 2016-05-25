@@ -39,10 +39,7 @@ entity c1541_logic is
     byte_n          : in std_logic;                       -- byte ready
     wps_n           : in std_logic;                       -- write-protect sense
     tr00_sense_n    : in std_logic;                       -- track 0 sense (unused?)
-    act             : out std_logic;                       -- activity LED
-		
-		dbg_adr_fetch : out std_logic_vector(15 downto 0);  -- dbg DAR
-		dbg_cpu_irq   : out std_logic                       -- dbg DAR
+    act             : out std_logic                       -- activity LED
   );
 end c1541_logic;
 
@@ -55,13 +52,15 @@ architecture SYN of c1541_logic is
   signal clk_1M_pulse   : std_logic;
     
   -- cpu signals  
-  signal cpu_a          : std_logic_vector(23 downto 0);
-  signal cpu_di         : std_logic_vector(7 downto 0);
-  signal cpu_do         : std_logic_vector(7 downto 0);
+  signal cpu_a          : unsigned(15 downto 0);
+  signal cpu_di         : unsigned(7 downto 0);
+  signal cpu_do         : unsigned(7 downto 0);
+  signal cpu_a_l        : std_logic_vector(23 downto 0);
+  signal cpu_do_l       : std_logic_vector(7 downto 0);
+  signal cpu_rw         : std_logic;
   signal cpu_rw_n       : std_logic;
   signal cpu_irq_n      : std_logic;
   signal cpu_so_n       : std_logic;
-  signal cpu_sync       : std_logic;  -- DAR
 
   -- rom signals
   signal rom_cs         : std_logic;
@@ -74,7 +73,6 @@ architecture SYN of c1541_logic is
   
   -- UC1 (VIA6522) signals
   signal uc1_do         : std_logic_vector(7 downto 0);
-  signal uc1_do_oe_n    : std_logic;
   signal uc1_cs1        : std_logic;
   signal uc1_cs2_n      : std_logic;
   signal uc1_irq_n      : std_logic;
@@ -86,7 +84,6 @@ architecture SYN of c1541_logic is
     
   -- UC3 (VIA6522) signals
   signal uc3_do         : std_logic_vector(7 downto 0);
-  signal uc3_do_oe_n    : std_logic;
   signal uc3_cs1        : std_logic;
   signal uc3_cs2_n      : std_logic;
   signal uc3_irq_n      : std_logic;
@@ -153,7 +150,7 @@ begin
   rom_cs <= '1' when STD_MATCH(cpu_a(15 downto 0), "11--------------") else '0';
 
   -- qualified write signals
-  ram_wr <= '1' when ram_cs = '1' and cpu_rw_n = '0' else '0';
+  ram_wr <= '1' when ram_cs = '1' and cpu_rw = '1' else '0';
 
   --
   -- hook up UC1 ports
@@ -209,10 +206,10 @@ begin
   --
   -- CPU connections
   --
-  cpu_di <= rom_do when rom_cs = '1' else
-            ram_do when ram_cs = '1' else
-            uc1_do when (uc1_cs1 = '1' and uc1_cs2_n = '0') else
-            uc3_do when (uc3_cs1 = '1' and uc3_cs2_n = '0') else
+  cpu_di <= unsigned(rom_do) when rom_cs = '1' else
+            unsigned(ram_do) when ram_cs = '1' else
+            unsigned(uc1_do) when (uc1_cs1 = '1' and uc1_cs2_n = '0') else
+            unsigned(uc3_do) when (uc3_cs1 = '1' and uc3_cs2_n = '0') else
             (others => '1');
   cpu_irq_n <= uc1_irq_n and uc3_irq_n;
   cpu_so_n <= byte_n or not soe;
@@ -234,43 +231,34 @@ begin
 			end if;	
 		end if;		
 	end process;
+	
+	cpu: entity work.cpu65xx
+		generic map (
+			pipelineOpcode => false,
+			pipelineAluMux => false,
+			pipelineAluOut => false
+		)
+		port map (
+			clk => clk_32M,
+			enable => clk_1M_pulse,
+			reset => reset,
+			nmi_n => '1',
+			irq_n => cpu_irq_n,
+			so_n => cpu_so_n,
 
-	process (clk_32M, cpu_sync)
-	begin 
-    if rising_edge(clk_32M) then
-			if cpu_sync = '1' then
-				dbg_adr_fetch <= cpu_a(15 downto 0);
-			end if;
-		end if;		
-	end process;
-	dbg_cpu_irq <= cpu_irq_n;
-	-- DAR
-		
-  cpu_inst : entity work.T65
-    port map
-    (
-      Mode        => "00",  -- 6502
-      Res_n       => reset_n,
-      Enable      => clk_1M_pulse,
-      Clk         => clk_32M,
-      Rdy         => '1',
-      Abort_n     => '1',
-      IRQ_n       => cpu_irq_n,
-      NMI_n       => '1',
-      SO_n        => cpu_so_n,
-      R_W_n       => cpu_rw_n,
-      Sync        => cpu_sync, -- open -- DAR
-      EF          => open,
-      MF          => open,
-      XF          => open,
-      ML_n        => open,
-      VP_n        => open,
-      VDA         => open,
-      VPA         => open,
-      A           => cpu_a,
-      DI          => cpu_di,
-      DO          => cpu_do
-    );
+			di => cpu_di,
+			do => cpu_do,
+			addr => cpu_a,
+			we => cpu_rw,
+
+			debugOpcode => open,
+			debugPc => open,
+			debugA => open,
+			debugX => open,
+			debugY => open,
+			debugS => open
+		);
+
 
   rom_inst : entity work.sprom
     generic map
@@ -287,7 +275,7 @@ begin
     port map
     (
       clock     => clk_32M,
-      address   => cpu_a(13 downto 0),
+      address   => std_logic_vector(cpu_a(13 downto 0)),
       q         => rom_do
     );
 
@@ -300,21 +288,21 @@ begin
     port map
     (
       clock     => clk_32M,
-      address   => cpu_a(10 downto 0),
+      address   => std_logic_vector(cpu_a(10 downto 0)),
       wren      => ram_wr,
-      data      => cpu_do,
+      data      => std_logic_vector(cpu_do),
       q         => ram_do
     );
 
   uc1_via6522_inst : entity work.M6522
     port map
     (
-      I_RS            => cpu_a(3 downto 0),
-      I_DATA          => cpu_do,
+      I_RS            => std_logic_vector(cpu_a(3 downto 0)),
+      I_DATA          => std_logic_vector(cpu_do),
       O_DATA          => uc1_do,
-      O_DATA_OE_L     => uc1_do_oe_n,
+      O_DATA_OE_L     => open,
 
-      I_RW_L          => cpu_rw_n,
+      I_RW_L          => not cpu_rw,
       I_CS1           => uc1_cs1,
       I_CS2_L         => uc1_cs2_n,
 
@@ -352,12 +340,12 @@ begin
   uc3_via6522_inst : entity work.M6522
     port map
     (
-      I_RS            => cpu_a(3 downto 0),
-      I_DATA          => cpu_do,
+      I_RS            => std_logic_vector(cpu_a(3 downto 0)),
+      I_DATA          => std_logic_vector(cpu_do),
       O_DATA          => uc3_do,
-      O_DATA_OE_L     => uc3_do_oe_n,
+      O_DATA_OE_L     => open,
 
-      I_RW_L          => cpu_rw_n,
+      I_RW_L          => not cpu_rw,
       I_CS1           => cpu_a(11),
       I_CS2_L         => uc3_cs2_n,
 
