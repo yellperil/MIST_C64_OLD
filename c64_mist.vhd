@@ -33,47 +33,43 @@ use IEEE.numeric_std.all;
 entity c64_mist is
 port(
 	-- Clocks
-   CLOCK_27        :       in      std_logic_vector(1 downto 0);
+   CLOCK_27        : in    std_logic_vector(1 downto 0);
 
    -- LED
-   LED             :       out     std_logic;
+   LED             : out   std_logic;
 
    -- VGA
-   VGA_R           :       out     std_logic_vector(5 downto 0);
-   VGA_G           :       out     std_logic_vector(5 downto 0);
-   VGA_B           :       out     std_logic_vector(5 downto 0);
-   VGA_HS          :       out     std_logic;
-   VGA_VS          :       out     std_logic;
-
-        -- Serial
---      UART_RXD        :       in      std_logic;
---      UART_TXD        :       out     std_logic;
+   VGA_R           : out   std_logic_vector(5 downto 0);
+   VGA_G           : out   std_logic_vector(5 downto 0);
+   VGA_B           : out   std_logic_vector(5 downto 0);
+   VGA_HS          : out   std_logic;
+   VGA_VS          : out   std_logic;
 
    -- SDRAM
-   SDRAM_A         :       out             std_logic_vector(12 downto 0);
-   SDRAM_DQ                :       inout           std_logic_vector(15 downto 0);
-   SDRAM_DQML      :  out          std_logic;
-   SDRAM_DQMH      :  out          std_logic;
-   SDRAM_nWE       :  out          std_logic;
-   SDRAM_nCAS      :  out          std_logic;
-   SDRAM_nRAS      :  out          std_logic;
-   SDRAM_nCS       :  out          std_logic;
-   SDRAM_BA                :  out          std_logic_vector(1 downto 0);
-   SDRAM_CLK       :  out          std_logic;
-   SDRAM_CKE       :  out          std_logic;
+   SDRAM_A         : out   std_logic_vector(12 downto 0);
+   SDRAM_DQ        : inout std_logic_vector(15 downto 0);
+   SDRAM_DQML      : out   std_logic;
+   SDRAM_DQMH      : out   std_logic;
+   SDRAM_nWE       : out   std_logic;
+   SDRAM_nCAS      : out   std_logic;
+   SDRAM_nRAS      : out   std_logic;
+   SDRAM_nCS       : out   std_logic;
+   SDRAM_BA        : out   std_logic_vector(1 downto 0);
+   SDRAM_CLK       : out   std_logic;
+   SDRAM_CKE       : out   std_logic;
 
    -- AUDIO
-   AUDIO_L         : out std_logic;
-   AUDIO_R         : out std_logic;
+   AUDIO_L         : out   std_logic;
+   AUDIO_R         : out   std_logic;
 
    -- SPI interface to io controller
-   SPI_SCK         : in std_logic;
+   SPI_SCK         : in    std_logic;
    SPI_DO          : inout std_logic;
-   SPI_DI          : in std_logic;
-   SPI_SS2         : in std_logic;
-   SPI_SS3         : in std_logic;
-   SPI_SS4         : in std_logic;
-   CONF_DATA0      : in std_logic
+   SPI_DI          : in    std_logic;
+   SPI_SS2         : in    std_logic;
+   SPI_SS3         : in    std_logic;
+   SPI_SS4         : in    std_logic;
+   CONF_DATA0      : in    std_logic
 );
 end c64_mist;
 
@@ -449,7 +445,7 @@ begin
 	sdram_addr <= c64_addr when iec_cycle='0' else ioctl_ram_addr;
 	sdram_data_out <= c64_data_out when iec_cycle='0' else ioctl_ram_data;
 	-- ram_we and ce are active low
-	sdram_ce <= not ram_ce when iec_cycle='0' else ioctl_iec_cycle_used;
+	sdram_ce <= not ram_ce when iec_cycle='0' else '0';
 	sdram_we <= not ram_we when iec_cycle='0' else ioctl_iec_cycle_used;
 
    -- address

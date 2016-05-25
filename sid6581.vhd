@@ -35,7 +35,6 @@ use IEEE.numeric_std.all;
 entity sid6581 is
 	port (
 		clk32			: in std_logic;								--	main clock signal
-		clk_DAC		: in std_logic;								--	DAC clock signal, must be as high as possible for the best results
 		reset			: in std_logic;								-- high active signal (reset when reset = '1')
 		cs				: in std_logic;								--	"chip select", when this signal is '1' this model can be accessed
 		we				: in std_logic;								-- when '1' this model can be written to, otherwise access is considered as read

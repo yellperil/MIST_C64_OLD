@@ -99,7 +99,7 @@ architecture rtl of spi_controller is
   
   -- C64 - 1541 start_sector in D64 format per track number [0..40]
 	type start_sector_array_type is array(0 to 40) of integer range 0 to 1023;
-	signal start_sector_array : start_sector_array_type := 
+	constant start_sector_array : start_sector_array_type := 
 		(  0,  0, 21, 42, 63, 84,105,126,147,168,189,210,231,252,273,294,315,336,357,376,395,
 		414,433,452,471,490,508,526,544,562,580,598,615,632,649,666,683,700,717,734,751);
 	

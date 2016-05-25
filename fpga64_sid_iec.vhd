@@ -251,22 +251,10 @@ begin
 	process(clk32)
 	begin
 		if rising_edge(clk32) then
---			cycleRestart <= '0';
 			if sysCycle = sysCycleDef'high then
 				sysCycle <= sysCycleDef'low;
-	elsif sysCycle = CYCLE_CPU6 then
-			sysCycle <= CYCLE_CPU8;
-
---				sysCycleCnt <= sysCycleCnt + 1;
---				cycleRestart <= '1';
---			elsif sysCycle = CYCLE_CPU7
---			and ntscMode = '1' then
---				sysCycle <= CYCLE_CPU8;		-- NTSC 33 Cycles
---			elsif sysCycle = CYCLE_CPUP
---			and sysCycleCnt /= "001"       -- TH 34 + 1/4
---			and sysCycleCnt /= "100"
---			and sysCycleCnt /= "111" then	-- PAL 34 + 3/8
---				sysCycle <= CYCLE_CPU8;
+			elsif sysCycle = CYCLE_CPU6 then
+				sysCycle <= CYCLE_CPU8;
 			else
 				sysCycle <= sysCycleDef'succ(sysCycle);
 			end if;
@@ -512,7 +500,6 @@ begin
 	sid : entity work.sid6581
 		port map (
 			clk32 => clk32,
-			clk_DAC => clk32,
 			reset => reset,
 
 			cs => cs_sid,
