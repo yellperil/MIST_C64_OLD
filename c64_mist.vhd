@@ -368,10 +368,10 @@ end component sigma_delta_dac;
 	signal tv15Khz_mode   : std_logic;
 	signal ntsc_init_mode : std_logic;
 
-	alias c64_addr_int : unsigned is unsigned(c64_addr);
-	alias c64_data_in_int   : unsigned is unsigned(c64_data_in);
+	alias  c64_addr_int : unsigned is unsigned(c64_addr);
+	alias  c64_data_in_int   : unsigned is unsigned(c64_data_in);
 	signal c64_data_in16: std_logic_vector(15 downto 0);
-	alias c64_data_out_int   : unsigned is unsigned(c64_data_out);
+	alias  c64_data_out_int   : unsigned is unsigned(c64_data_out);
 
 	signal clk_ram : std_logic;
 	signal clk32 : std_logic;
@@ -386,7 +386,7 @@ end component sigma_delta_dac;
 	signal b : unsigned(7 downto 0);
 	signal hsync : std_logic;
 	signal vsync : std_logic;
-	signal csync : std_logic;
+	signal blank : std_logic;
 
 	signal r_sd  : std_logic_vector(5 downto 0);
 	signal g_sd  : std_logic_vector(5 downto 0);
@@ -407,69 +407,68 @@ end component sigma_delta_dac;
 
 begin
 
-		-- 1541 activity led
-		LED <= not led_disk(6);
+	-- 1541 activity led
+	LED <= not led_disk(6);
 
-		iec_cycle <= '1' when ces = "1011" else '0';
+	iec_cycle <= '1' when ces = "1011" else '0';
 		
-        -- User io
-        user_io_d : user_io
-        generic map (STRLEN => CONF_STR'length)
-        port map (
-                SPI_CLK => SPI_SCK,
-                SPI_SS_IO => CONF_DATA0,
-                SPI_MISO => SPI_DO,
-                SPI_MOSI => SPI_DI,
+	-- User io
+	user_io_d : user_io
+	generic map (STRLEN => CONF_STR'length)
+	port map (
+		SPI_CLK => SPI_SCK,
+		SPI_SS_IO => CONF_DATA0,
+		SPI_MISO => SPI_DO,
+		SPI_MOSI => SPI_DI,
 
-					 joystick_0 => joyA,
-					 joystick_1 => joyB,
+		joystick_0 => joyA,
+		joystick_1 => joyB,
 					 
-                conf_str => to_slv(CONF_STR),
+		conf_str => to_slv(CONF_STR),
 
-                status => status,
---                switches => switches,
-                buttons => buttons,
-                scandoubler_disable => tv15Khz_mode,
+		status => status,
+		buttons => buttons,
+		scandoubler_disable => tv15Khz_mode,
 
-                sd_lba => sd_lba,
-                sd_rd => sd_rd,
-                sd_wr => sd_wr,
-                sd_ack => sd_ack,
-                sd_conf => sd_conf,
-                sd_sdhc => sd_sdhc,
-                sd_dout => sd_dout,
-                sd_dout_strobe => sd_dout_strobe,
-                sd_din => sd_din,
-                sd_din_strobe => sd_din_strobe,
-					 sd_change => sd_change,
+		sd_lba => sd_lba,
+		sd_rd => sd_rd,
+		sd_wr => sd_wr,
+		sd_ack => sd_ack,
+		sd_conf => sd_conf,
+		sd_sdhc => sd_sdhc,
+		sd_dout => sd_dout,
+		sd_dout_strobe => sd_dout_strobe,
+		sd_din => sd_din,
+		sd_din_strobe => sd_din_strobe,
+		sd_change => sd_change,
 
-                ps2_clk => clkdiv(9),
-                ps2_kbd_clk => ps2_clk,
-                ps2_kbd_data => ps2_dat
-        );
+		ps2_clk => clkdiv(9),
+		ps2_kbd_clk => ps2_clk,
+		ps2_kbd_data => ps2_dat
+	);
 		  
-		-- rearrange joystick contacta for c64
-		joyA_int <= "0" & joyA(4) & joyA(0) & joyA(1) & joyA(2) & joyA(3);
-		joyB_int <= "0" & joyB(4) & joyB(0) & joyB(1) & joyB(2) & joyB(3);
+	-- rearrange joystick contacta for c64
+	joyA_int <= "0" & joyA(4) & joyA(0) & joyA(1) & joyA(2) & joyA(3);
+	joyB_int <= "0" & joyB(4) & joyB(0) & joyB(1) & joyB(2) & joyB(3);
 
-		-- swap joysticks if requested
-		joyA_c64 <= joyB_int when status(3)='1' else joyA_int;
-		joyB_c64 <= joyA_int when status(3)='1' else joyB_int;
+	-- swap joysticks if requested
+	joyA_c64 <= joyB_int when status(3)='1' else joyA_int;
+	joyB_c64 <= joyA_int when status(3)='1' else joyB_int;
 
-		  data_io_d : data_io
-        port map (
-				-- SPI interface
-				sck => SPI_SCK,
-				ss => SPI_SS2,
-				sdi => SPI_DI,
+	data_io_d : data_io
+	port map (
+		-- SPI interface
+		sck => SPI_SCK,
+		ss => SPI_SS2,
+		sdi => SPI_DI,
 			
-				-- ram interface
-				index => ioctl_index,
-				clk => clk32,
-				wr => ioctl_wr,
-				a => ioctl_addr,
-				d => ioctl_data
-			);
+		-- ram interface
+		index => ioctl_index,
+		clk => clk32,
+		wr => ioctl_wr,
+		a => ioctl_addr,
+		d => ioctl_data
+	);
 
 	-- multiplex ram port between c64 core and data_io (io controller dma)
 	sdram_addr <= c64_addr when iec_cycle='0' else ioctl_ram_addr;
@@ -494,8 +493,7 @@ begin
 					ioctl_iec_cycle_used <= '0';
 				end if;
 			end if;
-				
-		
+
 			if ioctl_wr='1' and (ioctl_index /=X"0") then
 				if(ioctl_addr = 0) then
 					ioctl_load_addr(7 downto 0) <= ioctl_data;
@@ -513,29 +511,29 @@ begin
 	c64rom_wr   <= ioctl_wr when (ioctl_index = "00000") and (ioctl_addr(14) = '0') else '0';
 	c1541rom_wr <= ioctl_wr when (ioctl_index = "00000") and (ioctl_addr(14) = '1') else '0';
 
-   sd_card_d: sd_card
-   port map
-   (
-         -- connection to io controller
-         io_lba => sd_lba,
-         io_rd  => sd_rd,
-         io_wr  => sd_wr,
-         io_ack => sd_ack,
-         io_conf => sd_conf,
-         io_sdhc => sd_sdhc,
-         io_din => sd_dout,
-         io_din_strobe => sd_dout_strobe,
-         io_dout => sd_din,
-         io_dout_strobe => sd_din_strobe,
+	sd_card_d: sd_card
+	port map
+	(
+		-- connection to io controller
+		io_lba => sd_lba,
+		io_rd  => sd_rd,
+		io_wr  => sd_wr,
+		io_ack => sd_ack,
+		io_conf => sd_conf,
+		io_sdhc => sd_sdhc,
+		io_din => sd_dout,
+		io_din_strobe => sd_dout_strobe,
+		io_dout => sd_din,
+		io_dout_strobe => sd_din_strobe,
  
-         allow_sdhc  => '1',   -- esxdos supports SDHC
+		allow_sdhc  => '1',   -- esxdos supports SDHC
 
-         -- connection to host
-         sd_cs  => sd_dat3,
-         sd_sck => sd_clk,
-         sd_sdi => sd_cmd,
-         sd_sdo => sd_dat
-    );
+		-- connection to host
+		sd_cs  => sd_dat3,
+		sd_sck => sd_clk,
+		sd_sdi => sd_cmd,
+		sd_sdo => sd_dat
+	);
 
 	process(clk32)
 	begin
@@ -550,15 +548,15 @@ begin
    osd_d : osd
 		generic map (OSD_COLOR => "100")
    port map (
-		  
+
       pclk => osdclk,
       sck => SPI_SCK,
       ss => SPI_SS3,
       sdi => SPI_DI,
 
-      red_in => c64_r,
+      red_in   => c64_r,
       green_in => c64_g,
-      blue_in => c64_b,
+      blue_in  => c64_b,
       hs_in => hsync_osd,
       vs_in => vsync_osd,
 
@@ -603,7 +601,7 @@ begin
 
 	SDRAM_DQ(15 downto 8) <= (others => 'Z') when sdram_we='0' else (others => '0');
 	SDRAM_DQ(7 downto 0) <= (others => 'Z') when sdram_we='0' else sdram_data_out;
-		
+
 	-- read from sdram
 	c64_data_in <= SDRAM_DQ(7 downto 0);
 	-- clock is always enabled and memory is never masked as we only
@@ -611,7 +609,7 @@ begin
 	SDRAM_CKE <= '1';
 	SDRAM_DQML <= '0';
 	SDRAM_DQMH <= '0';
-	
+
 	sdr: sdram port map(
 		sd_addr => SDRAM_A,
 		sd_ba => SDRAM_BA,
@@ -620,14 +618,14 @@ begin
 		sd_ras => SDRAM_nRAS,
 		sd_cas => SDRAM_nCAS,
 
-		clk => clk_ram,		
+		clk => clk_ram,
 		addr => sdram_addr,
 		init => not pll_locked,
 		we => sdram_we,
 		refresh => idle,       -- refresh ram in idle state
 		ce => sdram_ce
 	);
-	
+
 	-- decode audio
    dac_l : sigma_delta_dac
    port map (
@@ -690,11 +688,11 @@ begin
 		reset_key => reset_key
 	);
 
-	-- 
+
    c64_iec_atn_i  <= not ((not c64_iec_atn_o)  and (not c1541_iec_atn_o) );
    c64_iec_data_i <= not ((not c64_iec_data_o) and (not c1541_iec_data_o));
 	c64_iec_clk_i  <= not ((not c64_iec_clk_o)  and (not c1541_iec_clk_o) );
-	
+
 	c1541_iec_atn_i  <= c64_iec_atn_i;
 	c1541_iec_data_i <= c64_iec_data_i;
 	c1541_iec_clk_i  <= c64_iec_clk_i;
@@ -718,7 +716,7 @@ begin
 			c1541_reset <= '1';
 		end if;
 	end process;
-	
+
 	c1541_sd : entity work.c1541_sd
 	port map
 	(
@@ -736,11 +734,11 @@ begin
 		iec_atn_i  => c1541_iec_atn_i,
 		iec_data_i => c1541_iec_data_i,
 		iec_clk_i  => c1541_iec_clk_i,
-	
+
 		iec_atn_o  => c1541_iec_atn_o,
 		iec_data_o => c1541_iec_data_o,
 		iec_clk_o  => c1541_iec_clk_o,
-	
+
 		sd_dat  => sd_dat,
 		sd_dat3 => sd_dat3,
 		sd_cmd  => sd_cmd,
@@ -748,7 +746,7 @@ begin
 
 		led => led_disk
 	);
-	
+
 	sd: scandoubler
 	port map(
 		clk_x2 => clk32,
@@ -759,7 +757,7 @@ begin
 		b_in => std_logic_vector(b(7 downto 2)),
 		hs_in => hsync_out,
 		vs_in => vsync_out,
-		
+
 		r_out => r_sd,
 		g_out => g_sd,
 		b_out => b_sd,
@@ -767,23 +765,24 @@ begin
 		vs_out => vsync_sd
 	);
 
-	c64_r <= std_logic_vector(r(7 downto 2)) when tv15Khz_mode = '1' else r_sd;
-	c64_g <= std_logic_vector(g(7 downto 2)) when tv15Khz_mode = '1' else g_sd;
-	c64_b <= std_logic_vector(b(7 downto 2)) when tv15Khz_mode = '1' else b_sd;
+	c64_r <= (others => '0') when blank = '1' else std_logic_vector(r(7 downto 2)) when tv15Khz_mode = '1' else r_sd;
+	c64_g <= (others => '0') when blank = '1' else std_logic_vector(g(7 downto 2)) when tv15Khz_mode = '1' else g_sd;
+	c64_b <= (others => '0') when blank = '1' else std_logic_vector(b(7 downto 2)) when tv15Khz_mode = '1' else b_sd;
 
 	comp_sync : entity work.composite_sync
 	port map(
 		clk32 => clk32,
-		hsync => not hsync,
-		vsync => not vsync,
+		hsync => hsync,
+		vsync => vsync,
+		ntsc  => ntsc_init_mode,
 		hsync_out => hsync_out,
 		vsync_out => vsync_out,
-		csync => csync
+		blank => blank
 	);
 
-   -- synchro composite/ synchro horizontale
-	VGA_HS <= csync when tv15Khz_mode = '1' else not hsync_sd;
-   -- commutation rapide / synchro verticale
+	-- synchro composite/ synchro horizontale
+	VGA_HS <= not (hsync_out xor vsync_out) when tv15Khz_mode = '1' else not hsync_sd;
+	-- commutation rapide / synchro verticale
 	VGA_VS <= '1'   when tv15Khz_mode = '1' else not vsync_sd;
 
 end struct;

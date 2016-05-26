@@ -35,6 +35,7 @@ begin
 	process(index)
 	begin
 		case index is
+		when X"0" => r <= X"00"; g <= X"00"; b <= X"00";
 		when X"1" => r <= X"FF"; g <= X"FF"; b <= X"FF";
 		when X"2" => r <= X"68"; g <= X"37"; b <= X"2B";
 		when X"3" => r <= X"70"; g <= X"A4"; b <= X"B2";
@@ -50,7 +51,6 @@ begin
 		when X"D" => r <= X"9A"; g <= X"D2"; b <= X"84";
 		when X"E" => r <= X"6C"; g <= X"5E"; b <= X"B5";
 		when X"F" => r <= X"95"; g <= X"95"; b <= X"95";
-		when others => r <= X"00"; g <= X"00"; b <= X"00";
 		end case;
 	end process;
 end Behavioral;

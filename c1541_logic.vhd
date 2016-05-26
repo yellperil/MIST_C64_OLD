@@ -78,7 +78,7 @@ architecture SYN of c1541_logic is
 	signal uc1_irq_n      : std_logic;
 	signal uc1_ca1_i      : std_logic;
 	signal uc1_pa_i       : std_logic_vector(7 downto 0);
-	signal uc1_pb_i       : std_logic_vector(7 downto 0);
+	signal uc1_pb_i       : std_logic_vector(7 downto 0) := (others => '0');
 	signal uc1_pb_o       : std_logic_vector(7 downto 0);
 	signal uc1_pb_oe_n    : std_logic_vector(7 downto 0);
 
