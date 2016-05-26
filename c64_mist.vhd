@@ -208,20 +208,24 @@ end component sd_card;
 
 component osd generic ( OSD_COLOR : std_logic_vector(2 downto 0)); port
 (
-	pclk      : in std_logic;
-	sck, sdi, ss : in std_logic;
+	clk_sys   : in std_logic;
+	ce_pix    : in std_logic;
+
+	SPI_SCK   : in std_logic;
+	SPI_SS3   : in std_logic;
+	SPI_DI    : in std_logic;
 		
 	-- VGA signals coming from core
-	red_in    : in std_logic_vector(5 downto 0);
-	green_in  : in std_logic_vector(5 downto 0);
-	blue_in   : in std_logic_vector(5 downto 0);
-	hs_in     : in std_logic;
-	vs_in     : in std_logic;
+	VGA_Rx    : in std_logic_vector(5 downto 0);
+	VGA_Gx    : in std_logic_vector(5 downto 0);
+	VGA_Bx    : in std_logic_vector(5 downto 0);
+	OSD_HS    : in std_logic;
+	OSD_VS    : in std_logic;
 
 	-- VGA signals going to video connector
-	red_out   : out std_logic_vector(5 downto 0);
-	green_out : out std_logic_vector(5 downto 0);
-	blue_out  : out std_logic_vector(5 downto 0)
+	VGA_R     : out std_logic_vector(5 downto 0);
+	VGA_G     : out std_logic_vector(5 downto 0);
+	VGA_B     : out std_logic_vector(5 downto 0)
 );
 end component osd;
 
@@ -230,7 +234,9 @@ end component osd;
 ---------
 component scandoubler is port
 (
-	clk_x2    : in std_logic;
+	clk_sys   : in std_logic;
+	ce_x2     : in std_logic;
+	ce_x1     : in std_logic;
 	scanlines : in std_logic_vector(1 downto 0);
 
 	-- c64 input
@@ -322,9 +328,13 @@ end component sigma_delta_dac;
 	signal joyB_c64 : std_logic_vector(5 downto 0);
 	signal reset_key : std_logic;
 	
-	signal c64_r : std_logic_vector(5 downto 0);
-	signal c64_g : std_logic_vector(5 downto 0);
-	signal c64_b : std_logic_vector(5 downto 0);
+	signal c64_r  : std_logic_vector(5 downto 0);
+	signal c64_g  : std_logic_vector(5 downto 0);
+	signal c64_b  : std_logic_vector(5 downto 0);
+	signal c64_ro : std_logic_vector(5 downto 0);
+	signal c64_go : std_logic_vector(5 downto 0);
+	signal c64_bo : std_logic_vector(5 downto 0);
+
 	signal status : std_logic_vector(7 downto 0);
 
 	signal sd_lba         : std_logic_vector(31 downto 0);
@@ -376,6 +386,7 @@ end component sigma_delta_dac;
 	signal clk_ram : std_logic;
 	signal clk32 : std_logic;
 	signal clk16 : std_logic;
+	signal ce_8  : std_logic;
 	signal osdclk : std_logic;
 	signal clkdiv : std_logic_vector(9 downto 0);
 
@@ -540,33 +551,14 @@ begin
 		if rising_edge(clk32) then
 			clk16 <= not clk16;
 			clkdiv <= std_logic_vector(unsigned(clkdiv)+1);
+			if(clkdiv(1 downto 0) = "00") then
+				ce_8 <= '1';
+			else
+				ce_8 <= '0';
+			end if;
 		end if;
 	end process;
 
-	-- route video through osd
-	osdclk <= clk32 when tv15Khz_mode='0' else clk16;
-   osd_d : osd
-		generic map (OSD_COLOR => "100")
-   port map (
-
-      pclk => osdclk,
-      sck => SPI_SCK,
-      ss => SPI_SS3,
-      sdi => SPI_DI,
-
-      red_in   => c64_r,
-      green_in => c64_g,
-      blue_in  => c64_b,
-      hs_in => hsync_osd,
-      vs_in => vsync_osd,
-
-      red_out => VGA_R,
-      green_out => VGA_G,
-      blue_out => VGA_B
-   );
-
-	hsync_osd <= hsync_out when tv15Khz_mode='1' else hsync_sd;
-	vsync_osd <= vsync_out when tv15Khz_mode='1' else vsync_sd;
 	ntsc_init_mode <= status(2);
 
    -- second  to generate 64mhz clock and phase shifted ram clock	
@@ -747,28 +739,6 @@ begin
 		led => led_disk
 	);
 
-	sd: scandoubler
-	port map(
-		clk_x2 => clk32,
-		scanlines => '0' & status(4),
-
-		r_in => std_logic_vector(r(7 downto 2)),
-		g_in => std_logic_vector(g(7 downto 2)),
-		b_in => std_logic_vector(b(7 downto 2)),
-		hs_in => hsync_out,
-		vs_in => vsync_out,
-
-		r_out => r_sd,
-		g_out => g_sd,
-		b_out => b_sd,
-		hs_out => hsync_sd,
-		vs_out => vsync_sd
-	);
-
-	c64_r <= (others => '0') when blank = '1' else std_logic_vector(r(7 downto 2)) when tv15Khz_mode = '1' else r_sd;
-	c64_g <= (others => '0') when blank = '1' else std_logic_vector(g(7 downto 2)) when tv15Khz_mode = '1' else g_sd;
-	c64_b <= (others => '0') when blank = '1' else std_logic_vector(b(7 downto 2)) when tv15Khz_mode = '1' else b_sd;
-
 	comp_sync : entity work.composite_sync
 	port map(
 		clk32 => clk32,
@@ -780,9 +750,58 @@ begin
 		blank => blank
 	);
 
+	-- route video through osd
+   osd_d : osd generic map (OSD_COLOR => "100")
+   port map 
+	(
+      clk_sys => clk32,
+		ce_pix  => ce_8,
+      SPI_SCK => SPI_SCK,
+      SPI_SS3 => SPI_SS3,
+      SPI_DI  => SPI_DI,
+
+      VGA_Rx  => c64_r,
+      VGA_Gx  => c64_g,
+      VGA_Bx  => c64_b,
+      OSD_HS  => hsync_out,
+      OSD_VS  => vsync_out,
+
+      VGA_R   => c64_ro,
+      VGA_G   => c64_go,
+      VGA_B   => c64_bo
+   );
+
+	c64_r <= (others => '0') when blank = '1' else std_logic_vector(r(7 downto 2));
+	c64_g <= (others => '0') when blank = '1' else std_logic_vector(g(7 downto 2));
+	c64_b <= (others => '0') when blank = '1' else std_logic_vector(b(7 downto 2));
+
+	sd: scandoubler
+	port map(
+		clk_sys => clk32,
+		ce_x2 => clk16,
+		ce_x1 => ce_8,
+		scanlines => '0' & status(4),
+
+		r_in => c64_ro,
+		g_in => c64_go,
+		b_in => c64_bo,
+		hs_in => hsync_out,
+		vs_in => vsync_out,
+
+		r_out => r_sd,
+		g_out => g_sd,
+		b_out => b_sd,
+		hs_out => hsync_sd,
+		vs_out => vsync_sd
+	);
+
+	VGA_R <= c64_ro when tv15Khz_mode='1' else r_sd;
+	VGA_G <= c64_go when tv15Khz_mode='1' else g_sd;
+	VGA_B <= c64_bo when tv15Khz_mode='1' else b_sd;
+
 	-- synchro composite/ synchro horizontale
 	VGA_HS <= not (hsync_out xor vsync_out) when tv15Khz_mode = '1' else not hsync_sd;
 	-- commutation rapide / synchro verticale
-	VGA_VS <= '1'   when tv15Khz_mode = '1' else not vsync_sd;
+	VGA_VS <= '1' when tv15Khz_mode = '1' else not vsync_sd;
 
 end struct;

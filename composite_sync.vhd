@@ -74,7 +74,7 @@ process(clk32)
 				if line_count = 260 then    vblank <= '1'; end if;
 				if line_count = 262 then vsync_out <= '1'; end if;
 				if line_count = 008 then vsync_out <= '0'; end if;
-				if line_count = 024 then    vblank <= '0'; end if;
+				if line_count = 010 then    vblank <= '0'; end if;
 			else
 				if dot_count  = 495 then    hblank <= '1'; end if;
 				if dot_count  = 010 then hsync_out <= '1'; end if;
@@ -84,7 +84,7 @@ process(clk32)
 				if line_count = 306 then    vblank <= '1'; end if;
 				if line_count = 308 then vsync_out <= '1'; end if;
 				if line_count = 004 then vsync_out <= '0'; end if;
-				if line_count = 025 then    vblank <= '0'; end if;
+				if line_count = 006 then    vblank <= '0'; end if;
 			end if;
 
 		end if;
