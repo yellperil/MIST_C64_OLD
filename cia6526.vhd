@@ -123,7 +123,7 @@ architecture Behavioral of cia6526 is
 	signal tod_latch_secs: unsigned(6 downto 0);
 	signal tod_latch_mins: unsigned(6 downto 0);
 	signal tod_latch_hrs: unsigned(4 downto 0);
-	signal tod_latch_pm: std_logic := '0';
+	constant tod_latch_pm: std_logic := '0';
 
 	-- Interrupt processing
 	signal resetIrq : boolean;

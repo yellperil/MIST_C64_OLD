@@ -162,7 +162,6 @@ architecture rtl of fpga64_sid_iec is
 	signal bankSwitch: unsigned(2 downto 0);
 
 	-- SID signals
-	signal sid_we : std_logic;
 	signal sid_do : std_logic_vector(7 downto 0);
 
 	-- CIA signals
@@ -230,7 +229,9 @@ architecture rtl of fpga64_sid_iec is
 	signal videoKey : std_logic;
 	signal ntscMode : std_logic;
 	signal ntscModeInvert : std_logic := '0' ;
-	
+
+	signal clk_1MHz     : std_logic_vector(31 downto 0);
+	signal voice_volume : signed(17 downto 0);
 begin
 -- -----------------------------------------------------------------------
 -- Local signal to outside world
@@ -495,22 +496,39 @@ begin
 -- -----------------------------------------------------------------------
 -- SID
 -- -----------------------------------------------------------------------
-	sid_we <= pulseWrRam and phi0_cpu;
+	div1m: process(clk32)				-- this process devides 32 MHz to 1MHz (for the SID)
+	begin									
+		if (rising_edge(clk32)) then			    			
+			if (reset = '1') then				
+				clk_1MHz 	<= "00000000000000000000000000000001";
+			else
+				clk_1MHz(31 downto 1) <= clk_1MHz(30 downto 0);
+				clk_1MHz(0)           <= clk_1MHz(31);
+			end if;
+		end if;
+	end process;
 
-	sid : entity work.sid6581
-		port map (
-			clk32 => clk32,
-			reset => reset,
+	audio_data <= std_logic_vector(voice_volume);
 
-			cs => cs_sid,
-			we => sid_we,
-			addr => cpuAddr(4 downto 0),
-			di => std_logic_vector(cpuDo),
-			do => sid_do,
+	sid: entity work.sid_top
+	port map (
+		clock => clk32,
+		reset => reset,
+                      
+		addr => "000" & cpuAddr(4 downto 0),
+		wren => pulseWrRam and phi0_cpu and cs_sid,
+		wdata => std_logic_vector(cpuDo),
+		rdata => sid_do,
 
-			extfilter_en => extfilter_en,
-			audio_data => audio_data
-		);
+		comb_wave_l => '0',
+		comb_wave_r => '0',
+
+		extfilter_en => extfilter_en,
+
+		start_iter => clk_1MHz(31),
+		sample_left => voice_volume,
+		sample_right => open
+	);
 
 -- -----------------------------------------------------------------------
 -- CIAs
@@ -633,7 +651,7 @@ begin
 -- -----------------------------------------------------------------------
 -- Reset button
 -- -----------------------------------------------------------------------
-calcReset: process(clk32)
+	calcReset: process(clk32)
 	begin
 		if rising_edge(clk32) then
 			if sysCycle = sysCycleDef'high then
@@ -652,7 +670,7 @@ calcReset: process(clk32)
 	end process;
 	
 	-- Video modes
-   ntscMode <= ntscInitMode xor ntscModeInvert;
+	ntscMode <= ntscInitMode xor ntscModeInvert;
 	process(clk32)
 	begin
 		if rising_edge(clk32) then
@@ -744,8 +762,6 @@ calcReset: process(clk32)
 			if sysCycle = CYCLE_IEC1 then
 				cia2_pai(7) <= iec_data_i;
 				cia2_pai(6) <= iec_clk_i;
-
-
 			end if;	
 		end if;
 	end process;

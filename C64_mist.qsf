@@ -201,54 +201,6 @@ set_global_assignment -name OUTPUT_IO_TIMING_FAR_END_VMEAS "HALF SIGNAL SWING" -
 
 # end ENTITY(C64_MiST)
 # ----------------------
-set_global_assignment -name VHDL_FILE ../sid/wave_map.vhd
-set_global_assignment -name VHDL_FILE ../sid/sid_top.vhd
-set_global_assignment -name VHDL_FILE ../sid/sid_regs.vhd
-set_global_assignment -name VHDL_FILE ../sid/sid_mixer.vhd
-set_global_assignment -name VHDL_FILE ../sid/sid_filter.vhd
-set_global_assignment -name VHDL_FILE ../sid/sid_debug_pkg.vhd
-set_global_assignment -name VHDL_FILE ../sid/sid_ctrl.vhd
-set_global_assignment -name VHDL_FILE ../sid/Q_table.vhd
-set_global_assignment -name VHDL_FILE ../sid/oscillator.vhd
-set_global_assignment -name VHDL_FILE ../sid/my_math_pkg.vhd
-set_global_assignment -name VHDL_FILE ../sid/mult_acc.vhd
-set_global_assignment -name VHDL_FILE ../sid/adsr_multi.vhd
-set_global_assignment -name VHDL_FILE sid6581.vhd
-set_global_assignment -name VERILOG_FILE sigma_delta_dac.v
-set_global_assignment -name VHDL_FILE cpu65xx_fast.vhd
-set_global_assignment -name VHDL_FILE cpu65xx_e.vhd
-set_global_assignment -name VHDL_FILE cpu_6510.vhd
-set_global_assignment -name VHDL_FILE pll.vhd
-set_global_assignment -name VHDL_FILE c1541_logic.vhd
-set_global_assignment -name VHDL_FILE c1541_sd.vhd
-set_global_assignment -name VHDL_FILE gcr_floppy.vhd
-set_global_assignment -name VERILOG_FILE sd_card.v
-set_global_assignment -name VHDL_FILE rom_c64_chargen.vhd
-set_global_assignment -name VHDL_FILE rom_c64_basic.vhd
-set_global_assignment -name VHDL_FILE rom_c64_kernal.vhd
-set_global_assignment -name VHDL_FILE fpga64_buslogic_roms_mmu.vhd
-set_global_assignment -name VERILOG_FILE sdram.v
-set_global_assignment -name SYSTEMVERILOG_FILE sram.sv
-set_global_assignment -name VHDL_FILE gen_rwram.vhd
-set_global_assignment -name VHDL_FILE gen_ram.vhd
-set_global_assignment -name VHDL_FILE sprom.vhd
-set_global_assignment -name VHDL_FILE spram.vhd
-set_global_assignment -name VERILOG_FILE user_io.v
-set_global_assignment -name VERILOG_FILE data_io.v
-set_global_assignment -name VERILOG_FILE scandoubler.v
-set_global_assignment -name VERILOG_FILE osd.v
-set_global_assignment -name VHDL_FILE fpga64_keyboard_matrix_mark_mcdougall.vhd
-set_global_assignment -name VHDL_FILE m6522.vhd
-set_global_assignment -name VHDL_FILE spi_controller.vhd
-set_global_assignment -name VHDL_FILE video_vicII_656x_a.vhd
-set_global_assignment -name VHDL_FILE composite_sync.vhd
-set_global_assignment -name VHDL_FILE video_vicII_656x_e.vhd
-set_global_assignment -name VHDL_FILE io_ps2_keyboard.vhd
-set_global_assignment -name VHDL_FILE fpga64_rgbcolor.vhd
-set_global_assignment -name VHDL_FILE fpga64_bustiming.vhd
-set_global_assignment -name VHDL_FILE cia6526.vhd
-set_global_assignment -name VHDL_FILE fpga64_sid_iec.vhd
-set_global_assignment -name VHDL_FILE c64_mist.vhd
 set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
 set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top
 set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
@@ -369,4 +321,52 @@ set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to AUDIO_L
 set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to AUDIO_R
 set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to SPI_DO
 set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to CONF_DATA0
+set_global_assignment -name VHDL_FILE ../sid/wave_map.vhd
+set_global_assignment -name VHDL_FILE ../sid/sid_top.vhd
+set_global_assignment -name VHDL_FILE ../sid/sid_regs.vhd
+set_global_assignment -name VHDL_FILE ../sid/sid_mixer.vhd
+set_global_assignment -name VHDL_FILE ../sid/sid_filter.vhd
+set_global_assignment -name VHDL_FILE ../sid/sid_debug_pkg.vhd
+set_global_assignment -name VHDL_FILE ../sid/sid_ctrl.vhd
+set_global_assignment -name VHDL_FILE ../sid/Q_table.vhd
+set_global_assignment -name VHDL_FILE ../sid/oscillator.vhd
+set_global_assignment -name VHDL_FILE ../sid/my_math_pkg.vhd
+set_global_assignment -name VHDL_FILE ../sid/mult_acc.vhd
+set_global_assignment -name VHDL_FILE ../sid/adsr_multi.vhd
+set_global_assignment -name VERILOG_FILE sigma_delta_dac.v
+set_global_assignment -name VHDL_FILE cpu65xx_fast.vhd
+set_global_assignment -name VHDL_FILE cpu65xx_e.vhd
+set_global_assignment -name VHDL_FILE cpu_6510.vhd
+set_global_assignment -name VHDL_FILE pll.vhd
+set_global_assignment -name VHDL_FILE c1541_logic.vhd
+set_global_assignment -name VHDL_FILE c1541_sd.vhd
+set_global_assignment -name VHDL_FILE gcr_floppy.vhd
+set_global_assignment -name VERILOG_FILE sd_card.v
+set_global_assignment -name VHDL_FILE rom_Kernal.vhd
+set_global_assignment -name VHDL_FILE rom_C1541.vhd
+set_global_assignment -name MIF_FILE roms/std_C1541.mif
+set_global_assignment -name VHDL_FILE rom_c64_chargen.vhd
+set_global_assignment -name VHDL_FILE rom_c64_basic.vhd
+set_global_assignment -name VHDL_FILE rom_c64_kernal.vhd
+set_global_assignment -name VHDL_FILE fpga64_buslogic_roms_mmu.vhd
+set_global_assignment -name VERILOG_FILE sdram.v
+set_global_assignment -name SYSTEMVERILOG_FILE sram.sv
+set_global_assignment -name VHDL_FILE gen_rwram.vhd
+set_global_assignment -name VHDL_FILE gen_ram.vhd
+set_global_assignment -name VERILOG_FILE user_io.v
+set_global_assignment -name VERILOG_FILE data_io.v
+set_global_assignment -name VERILOG_FILE scandoubler.v
+set_global_assignment -name VERILOG_FILE osd.v
+set_global_assignment -name VHDL_FILE fpga64_keyboard_matrix_mark_mcdougall.vhd
+set_global_assignment -name VHDL_FILE m6522.vhd
+set_global_assignment -name VHDL_FILE spi_controller.vhd
+set_global_assignment -name VHDL_FILE video_vicII_656x_a.vhd
+set_global_assignment -name VHDL_FILE composite_sync.vhd
+set_global_assignment -name VHDL_FILE video_vicII_656x_e.vhd
+set_global_assignment -name VHDL_FILE io_ps2_keyboard.vhd
+set_global_assignment -name VHDL_FILE fpga64_rgbcolor.vhd
+set_global_assignment -name VHDL_FILE fpga64_bustiming.vhd
+set_global_assignment -name VHDL_FILE cia6526.vhd
+set_global_assignment -name VHDL_FILE fpga64_sid_iec.vhd
+set_global_assignment -name VHDL_FILE c64_mist.vhd
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
