@@ -342,12 +342,9 @@ set_global_assignment -name VHDL_FILE c1541_logic.vhd
 set_global_assignment -name VHDL_FILE c1541_sd.vhd
 set_global_assignment -name VHDL_FILE gcr_floppy.vhd
 set_global_assignment -name VERILOG_FILE sd_card.v
-set_global_assignment -name VHDL_FILE rom_Kernal.vhd
+set_global_assignment -name VHDL_FILE rom_C64.vhd
 set_global_assignment -name VHDL_FILE rom_C1541.vhd
-set_global_assignment -name MIF_FILE roms/std_C1541.mif
 set_global_assignment -name VHDL_FILE rom_c64_chargen.vhd
-set_global_assignment -name VHDL_FILE rom_c64_basic.vhd
-set_global_assignment -name VHDL_FILE rom_c64_kernal.vhd
 set_global_assignment -name VHDL_FILE fpga64_buslogic_roms_mmu.vhd
 set_global_assignment -name VERILOG_FILE sdram.v
 set_global_assignment -name SYSTEMVERILOG_FILE sram.sv

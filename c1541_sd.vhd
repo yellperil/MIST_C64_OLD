@@ -50,7 +50,11 @@ port
 	sd_cmd      : buffer std_logic;
 	sd_clk      : buffer std_logic;
 
-	led         : out std_logic_vector(7 downto 0)
+	led         : out std_logic_vector(7 downto 0);
+
+	c1541rom_addr   : in std_logic_vector(13 downto 0);
+	c1541rom_data   : in std_logic_vector(7 downto 0);
+	c1541rom_wr     : in std_logic
 );
 end c1541_sd;
 
@@ -95,6 +99,10 @@ begin
 		sb_clk_in  => not iec_clk_i,
 		sb_atn_in  => not iec_atn_i,
     
+		c1541rom_addr => c1541rom_addr,
+		c1541rom_data => c1541rom_data,
+		c1541rom_wr => c1541rom_wr,
+
 		-- drive-side interface
 		ds              => "00",   -- device select
 		di              => do,     -- disk write data

@@ -39,6 +39,10 @@ entity fpga64_buslogic is
 		game : in std_logic;
 		exrom : in std_logic;
 
+		c64rom_addr: in std_logic_vector(13 downto 0);
+		c64rom_data: in std_logic_vector(7 downto 0);
+		c64rom_wr:   in std_logic;
+
 		cpuWe: in std_logic;
 		cpuAddr: in unsigned(15 downto 0);
 		cpuData: in unsigned(7 downto 0);
@@ -87,11 +91,10 @@ architecture rtl of fpga64_buslogic is
 
 	signal charData: unsigned(7 downto 0);
 	signal basicData: unsigned(7 downto 0);
-	signal kernalData: unsigned(7 downto 0);
+	signal romData: std_logic_vector(7 downto 0);
 
 	signal cs_CharReg : std_logic;
-	signal cs_BasicReg : std_logic;
-	signal cs_KernalReg : std_logic;
+	signal cs_romReg : std_logic;
 	signal vicCharReg : std_logic;
 
 	signal cs_ramReg : std_logic;
@@ -115,19 +118,17 @@ begin
 			do => charData
 		);
 
-	basicrom: entity work.rom_c64_basic
-		port map (
-			clk => clk,
-			addr => cpuAddr(12 downto 0),
-			do => basicData
-		);
+	kernelrom: entity work.rom_C64
+		port map 
+		(
+			clock => clk,
 
---kernelrom: entity work.rom_c64_Jiffy_kernel
-	kernelrom: entity work.rom_c64_kernal
-		port map (
-			clk => clk,
-			addr => cpuAddr(12 downto 0),
-			do => kernalData
+			wren => c64rom_wr,
+			data => c64rom_data,
+			wraddress => c64rom_addr,
+
+			rdaddress => std_logic_vector(cpuAddr(14) & cpuAddr(12 downto 0)),
+			q => romData
 		);
 	
 	--
@@ -139,12 +140,10 @@ begin
 		dataToCpu <= lastVicData;
 		if cs_CharReg = '1' then	
 			dataToCpu <= charData;
-		elsif cs_BasicReg = '1' then	
-			dataToCpu <= basicData;
-		elsif cs_KernalReg = '1' then	
-			dataToCpu <= kernalData;	
+		elsif cs_romReg = '1' then	
+			dataToCpu <= unsigned(romData);
 		elsif cs_ramReg = '1' then
-		    dataToCpu <= ramData;
+			dataToCpu <= ramData;
 		elsif cs_vicReg = '1' then
 			dataToCpu <= vicData;
 		elsif cs_sidReg = '1' then
@@ -170,9 +169,8 @@ begin
 
 				systemWe <= '0';
 				vicCharReg <= '0';
-				cs_charReg <= '0';
-				cs_basicReg <= '0';
-				cs_kernalReg <= '0';
+				cs_CharReg <= '0';
+				cs_romReg <= '0';
 				cs_ramReg <= '0';
 				cs_vicReg <= '0';
 				cs_sidReg <= '0';
@@ -190,17 +188,17 @@ begin
 					case cpuAddr(15 downto 12) is
 					when X"E" | X"F" =>
 						if (cpuWe = '0') and (bankSwitch(1) = '1') then
-						-- Read kernal
-						cs_kernalReg <= '1';
+							-- Read kernal
+							cs_romReg <= '1';
 						else
-						-- 64Kbyte RAM layout
+							-- 64Kbyte RAM layout
 							cs_ramReg <= '1';
 						end if;
 					when X"D" =>
-					if (bankSwitch(1) = '0') and (bankSwitch(0) = '0') then
-						-- 64Kbyte RAM layout
-						cs_ramReg <= '1';
-					elsif bankSwitch(2) = '1' then
+						if (bankSwitch(1) = '0') and (bankSwitch(0) = '0') then
+							-- 64Kbyte RAM layout
+							cs_ramReg <= '1';
+						elsif bankSwitch(2) = '1' then
 							case cpuAddr(11 downto 8) is
 								when X"0" | X"1" | X"2" | X"3" =>
 									cs_vicReg <= '1';
@@ -222,8 +220,8 @@ begin
 						else
 							-- I/O space turned off. Read from charrom or write to RAM.
 							if cpuWe = '0' then
-							     cs_charReg <= '1';
-						    else
+							     cs_CharReg <= '1';
+							else
 							     cs_ramReg <= '1';
 							end if;
 						end if;
@@ -233,7 +231,7 @@ begin
 							cs_romHReg <= '1';
 						elsif (cpuWe = '0') and (bankSwitch(1) = '1') and (bankSwitch(0) = '1') then
 							-- Access basic rom
-							cs_basicReg <= '1';
+							cs_romReg <= '1';
 						elsif (exrom = '0') or (game = '1') then
 							-- If not in Ultimax mode access ram
 							cs_ramReg <= '1';

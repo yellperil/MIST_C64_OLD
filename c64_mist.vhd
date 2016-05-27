@@ -262,7 +262,8 @@ component data_io port
 
 	downloading: out std_logic;
 	size      : out std_logic_vector(15 downto 0);
-		
+   index     : out std_logic_vector(4 downto 0);
+
 	-- external ram interface
 	clk       : in  std_logic;
 	wr        : out std_logic;
@@ -298,6 +299,7 @@ end component sigma_delta_dac;
 	signal ioctl_wr: std_logic;
 	signal ioctl_addr: std_logic_vector(15 downto 0);
 	signal ioctl_data: std_logic_vector(7 downto 0);
+	signal ioctl_index: std_logic_vector(4 downto 0);
 	signal ioctl_ram_addr: std_logic_vector(15 downto 0);
 	signal ioctl_ram_data: std_logic_vector(7 downto 0);
 	signal ioctl_load_addr: std_logic_vector(15 downto 0);
@@ -309,12 +311,16 @@ end component sigma_delta_dac;
 	signal sdram_addr: std_logic_vector(15 downto 0);
 	signal sdram_data_out: std_logic_vector(7 downto 0);
 	
+	signal c1541rom_wr   : std_logic;
+	signal c64rom_wr     : std_logic;
+
 	signal joyA : std_logic_vector(7 downto 0);
 	signal joyB : std_logic_vector(7 downto 0);
 	signal joyA_int : std_logic_vector(5 downto 0);
 	signal joyB_int : std_logic_vector(5 downto 0);
 	signal joyA_c64 : std_logic_vector(5 downto 0);
 	signal joyB_c64 : std_logic_vector(5 downto 0);
+	signal reset_key : std_logic;
 	
 	signal c64_r : std_logic_vector(5 downto 0);
 	signal c64_g : std_logic_vector(5 downto 0);
@@ -370,7 +376,6 @@ end component sigma_delta_dac;
 	signal clk_ram : std_logic;
 	signal clk32 : std_logic;
 	signal clk16 : std_logic;
-	signal clk8 : std_logic;
 	signal osdclk : std_logic;
 	signal clkdiv : std_logic_vector(9 downto 0);
 
@@ -395,7 +400,7 @@ end component sigma_delta_dac;
 	
 	signal audio_data : std_logic_vector(17 downto 0);
 	
-	signal reset_counter    : std_logic_vector(7 downto 0);
+	signal reset_counter    : integer;
 	signal reset_n          : std_logic;
 	
 	signal led_disk         : std_logic_vector(7 downto 0);
@@ -459,6 +464,7 @@ begin
 				sdi => SPI_DI,
 			
 				-- ram interface
+				index => ioctl_index,
 				clk => clk32,
 				wr => ioctl_wr,
 				a => ioctl_addr,
@@ -490,7 +496,7 @@ begin
 			end if;
 				
 		
-			if(ioctl_wr='1') then
+			if ioctl_wr='1' and (ioctl_index /=X"0") then
 				if(ioctl_addr = 0) then
 					ioctl_load_addr(7 downto 0) <= ioctl_data;
 				elsif(ioctl_addr = 1) then
@@ -503,7 +509,10 @@ begin
 			end if;
 		end if;
 	end process;
-	  
+
+	c64rom_wr   <= ioctl_wr when (ioctl_index = "00000") and (ioctl_addr(14) = '0') else '0';
+	c1541rom_wr <= ioctl_wr when (ioctl_index = "00000") and (ioctl_addr(14) = '1') else '0';
+
    sd_card_d: sd_card
    port map
    (
@@ -528,18 +537,11 @@ begin
          sd_sdo => sd_dat
     );
 
-	process(clk16)
-	begin
-		if rising_edge(clk16) then
-			clkdiv <= std_logic_vector(unsigned(clkdiv)+1);
-			clk8 <= not clk8;
-		end if;
-	end process;
-
 	process(clk32)
 	begin
 		if rising_edge(clk32) then
 			clk16 <= not clk16;
+			clkdiv <= std_logic_vector(unsigned(clkdiv)+1);
 		end if;
 	end process;
 
@@ -585,13 +587,15 @@ begin
 			reset_n <= '0';
 			-- Reset by:
 			-- Button at device, IO controller reboot, OSD or FPGA startup
-			if buttons(1)='1' or status(0)='1' or status(5)='1' or pll_locked = '0' then
-				reset_counter <= (others => '0');
+			if status(0)='1' then
+				reset_counter <= 16000000;
+			elsif buttons(1)='1' or status(5)='1' or pll_locked = '0' or reset_key = '1' then
+				reset_counter <= 255;
 			else
-			  if reset_counter = X"FF" then
+			  if reset_counter = 0 then
 					reset_n <= '1';
 				else
-					reset_counter <= std_logic_vector(unsigned(reset_counter)+1);
+					reset_counter <= reset_counter - 1;
 				end if;
 			end if;
 		end if;
@@ -679,7 +683,11 @@ begin
 		iec_data_i => not c64_iec_data_i,
 		iec_clk_i  => not c64_iec_clk_i,
 		iec_atn_i  => not c64_iec_atn_i,
-		disk_num => open
+		disk_num => open,
+		c64rom_addr => ioctl_addr(13 downto 0),
+		c64rom_data => ioctl_data,
+		c64rom_wr => c64rom_wr,
+		reset_key => reset_key
 	);
 
 	-- 
@@ -693,12 +701,12 @@ begin
 
 	-- 1541 reset is delayed by 2 seconds to give mist firmware enough
 	-- time to prepare the sd card
-	process(clk8, reset_n)
-		variable reset_cnt : integer range 0 to 16000000;
+	process(clk32, reset_n)
+		variable reset_cnt : integer range 0 to 32000000;
 	begin
 		if reset_n = '0' then
-			reset_cnt := 16000000;
-		elsif rising_edge(clk8) then
+			reset_cnt := 32000000;
+		elsif rising_edge(clk32) then
 			if reset_cnt /= 0 then
 				reset_cnt := reset_cnt - 1;
 			end if;
@@ -714,27 +722,31 @@ begin
 	c1541_sd : entity work.c1541_sd
 	port map
 	(
-    clk32 => clk32,
-    clk18 => clk32, -- MiST uses virtual SPI SD, so any clock can be used.
-	 reset => c1541_reset,
+		clk32 => clk32,
+		clk18 => clk32, -- MiST uses virtual SPI SD, so any clock can be used.
+		reset => c1541_reset,
 
-	 disk_change => sd_change, 
-	disk_num => (others => '0'),   -- not seletable by f8 or similar
+		c1541rom_addr => ioctl_addr(13 downto 0),
+		c1541rom_data => ioctl_data,
+		c1541rom_wr => c1541rom_wr,
 
-	iec_atn_i  => c1541_iec_atn_i,
-	iec_data_i => c1541_iec_data_i,
-	iec_clk_i  => c1541_iec_clk_i,
+		disk_change => sd_change, 
+		disk_num => (others => '0'),   -- not seletable by f8 or similar
+
+		iec_atn_i  => c1541_iec_atn_i,
+		iec_data_i => c1541_iec_data_i,
+		iec_clk_i  => c1541_iec_clk_i,
 	
-	iec_atn_o  => c1541_iec_atn_o,
-	iec_data_o => c1541_iec_data_o,
-	iec_clk_o  => c1541_iec_clk_o,
+		iec_atn_o  => c1541_iec_atn_o,
+		iec_data_o => c1541_iec_data_o,
+		iec_clk_o  => c1541_iec_clk_o,
 	
-	sd_dat  => sd_dat,
-	sd_dat3 => sd_dat3,
-	sd_cmd  => sd_cmd,
-	sd_clk  => sd_clk,
+		sd_dat  => sd_dat,
+		sd_dat3 => sd_dat3,
+		sd_cmd  => sd_cmd,
+		sd_clk  => sd_clk,
 
-	led => led_disk
+		led => led_disk
 	);
 	
 	sd: scandoubler

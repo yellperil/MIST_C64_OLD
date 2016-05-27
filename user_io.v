@@ -85,12 +85,8 @@ wire [7:0] core_type = 8'ha4;
 // command byte read by the io controller
 wire [7:0] sd_cmd = { 4'h5, sd_conf, sd_sdhc, sd_wr, sd_rd };
 
-// filter spi clock. the 8 bit gate delay is ~2.5ns in total
-wire [7:0] spi_sck_D = { spi_sck_D[6:0], SPI_CLK } /* synthesis keep */;
-wire spi_sck = (spi_sck && spi_sck_D != 8'h00) || (!spi_sck && spi_sck_D == 8'hff);
-
 // drive MISO only when transmitting core id
-always@(negedge spi_sck or posedge SPI_SS_IO) begin
+always@(negedge SPI_CLK or posedge SPI_SS_IO) begin
 	if(SPI_SS_IO == 1) begin
 	   SPI_MISO <= 1'bZ;
 	end else begin
@@ -295,7 +291,7 @@ always @(posedge serial_strobe or posedge status[0]) begin
 	end
 end 
 
-always@(negedge spi_sck or posedge status[0]) begin
+always@(negedge SPI_CLK or posedge status[0]) begin
 	if(status[0] == 1) begin
 		serial_out_rptr <= 0;
 	end else begin
@@ -308,7 +304,7 @@ always@(negedge spi_sck or posedge status[0]) begin
 end
 
 // SPI receiver
-always@(posedge spi_sck or posedge SPI_SS_IO) begin
+always@(posedge SPI_CLK or posedge SPI_SS_IO) begin
 
 	if(SPI_SS_IO == 1) begin
 	   bit_cnt <= 3'd0;

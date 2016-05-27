@@ -47,6 +47,7 @@ entity fpga64_keyboard_matrix is
 		pao: out unsigned(7 downto 0);
 		pbo: out unsigned(7 downto 0);
 		
+		reset_key : out std_logic;
 		videoKey : out std_logic;
 		traceKey : out std_logic;
 		trace2Key : out std_logic;
@@ -468,8 +469,12 @@ begin
 					when X"75" => if extendedFlag = '0' then joyKeys(0) <= not releaseFlag; else key_up <= not releaseFlag; end if;
 					when X"76" => key_runstop <= not releaseFlag; 
 					when X"78" => -- F11
-						if releaseFlag = '0' then
-							joySelKey <= '1';
+						if key_ctrl = '1' then
+							reset_key <= not releaseFlag;
+						else
+							if releaseFlag = '0' then
+								joySelKey <= '1';
+							end if;
 						end if;
 					when others => null;
 					end case;

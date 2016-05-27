@@ -42,6 +42,7 @@ entity fpga64_sid_iec is
 		-- keyboard interface (use any ordinairy PS2 keyboard)
 		kbd_clk     : in  std_logic;
 		kbd_dat     : in  std_logic;
+		reset_key   : out std_logic;
 
 		-- external memory
 		ramAddr     : out unsigned(15 downto 0);
@@ -92,8 +93,11 @@ entity fpga64_sid_iec is
 		iec_atn_i	: in  std_logic;
 		
 		disk_num    : out std_logic_vector(7 downto 0);
-		dbg_num     : out std_logic_vector(2 downto 0)
+		dbg_num     : out std_logic_vector(2 downto 0);
 
+		c64rom_addr : in std_logic_vector(13 downto 0);
+		c64rom_data : in std_logic_vector(7 downto 0);
+		c64rom_wr   : in std_logic
 );
 end fpga64_sid_iec;
 
@@ -370,45 +374,49 @@ begin
 -- PLA and bus-switches
 -- -----------------------------------------------------------------------
 	buslogic: entity work.fpga64_buslogic
-		port map (
-			clk => clk32,
-			reset => reset,
-			cpuHasBus => cpuHasBus,
+	port map (
+		clk => clk32,
+		reset => reset,
+		cpuHasBus => cpuHasBus,
 
-			bankSwitch => cpuIO(2 downto 0),
+		bankSwitch => cpuIO(2 downto 0),
 
-			game => game,
-			exrom => exrom,
+		game => game,
+		exrom => exrom,
 
-			ramData => ramDataReg,
+		ramData => ramDataReg,
 
-			cpuWe => cpuWe,
-			cpuAddr => cpuAddr,
-			cpuData => cpuDo,
-			vicAddr => vicAddr,
-			vicData => vicData,
-			sidData => unsigned(sid_do),
-			colorData => colorData,
-			cia1Data => cia1Do,
-			cia2Data => cia2Do,
-			lastVicData => lastVicDi,
+		cpuWe => cpuWe,
+		cpuAddr => cpuAddr,
+		cpuData => cpuDo,
+		vicAddr => vicAddr,
+		vicData => vicData,
+		sidData => unsigned(sid_do),
+		colorData => colorData,
+		cia1Data => cia1Do,
+		cia2Data => cia2Do,
+		lastVicData => lastVicDi,
 
-			systemWe => systemWe,
-			systemAddr => systemAddr,
-			dataToCpu => cpuDi,
-			dataToVic => vicDi,
+		systemWe => systemWe,
+		systemAddr => systemAddr,
+		dataToCpu => cpuDi,
+		dataToVic => vicDi,
 
-			cs_vic => cs_vic,
-			cs_sid => cs_sid,
-			cs_color => cs_color,
-			cs_cia1 => cs_cia1,
-			cs_cia2 => cs_cia2,
-			cs_ram => cs_ram,
-			cs_ioE => cs_ioE,
-			cs_ioF => cs_ioF,
-			cs_romL => cs_romL,
-			cs_romH => cs_romH
-		);
+		cs_vic => cs_vic,
+		cs_sid => cs_sid,
+		cs_color => cs_color,
+		cs_cia1 => cs_cia1,
+		cs_cia2 => cs_cia2,
+		cs_ram => cs_ram,
+		cs_ioE => cs_ioE,
+		cs_ioF => cs_ioF,
+		cs_romL => cs_romL,
+		cs_romH => cs_romH,
+
+		c64rom_addr => c64rom_addr,
+		c64rom_data => c64rom_data,
+		c64rom_wr => c64rom_wr
+	);
 
 	process(clk32)
 	begin
@@ -641,7 +649,8 @@ begin
 			videoKey => videoKey,
 			traceKey => open,
 			trace2Key => trace2Key,
-			
+			reset_key => reset_key,
+
 			disk_num => disk_num,
 			dbg_num => dbg_num,
 			
