@@ -48,6 +48,7 @@ entity fpga64_keyboard_matrix is
 		pbo: out unsigned(7 downto 0);
 		
 		reset_key : out std_logic;
+		restore_key : out std_logic;
 		videoKey : out std_logic;
 		traceKey : out std_logic;
 		trace2Key : out std_logic;
@@ -375,10 +376,6 @@ begin
 						if releaseFlag = '0' then
 							traceKey <= '1';
 						end if;
---					when X"07" => -- F12
---						if releaseFlag = '0' then
---							videoKey <= '1';
---						end if;
 					when X"09" => key_plus <= not releaseFlag;
 					when X"0A" => -- F8
 						if releaseFlag = '0' then
@@ -388,8 +385,8 @@ begin
 						if releaseFlag = '0' then
 							trace2Key <= '1';
 						end if;
+					when X"0C" => restore_key <= not releaseFlag; -- F4
 					when X"83" => key_F7 <= not releaseFlag;
-	--				when X"0D" => key_runstop <= not releaseFlag;
 					when X"0E" => key_arrowleft <= not releaseFlag;
 					when X"11" => key_commodore <= not releaseFlag; 
 					when X"12" => if extendedFlag = '0' then key_shiftl <= not releaseFlag; end if;

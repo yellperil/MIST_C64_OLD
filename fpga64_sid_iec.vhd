@@ -232,6 +232,7 @@ architecture rtl of fpga64_sid_iec is
 	signal videoKey : std_logic;
 	signal ntscMode : std_logic;
 	signal ntscModeInvert : std_logic := '0' ;
+	signal restore_key : std_logic;
 
 	signal clk_1MHz     : std_logic_vector(31 downto 0);
 	signal voice_volume : signed(17 downto 0);
@@ -649,6 +650,7 @@ begin
 			traceKey => open,
 			trace2Key => trace2Key,
 			reset_key => reset_key,
+			restore_key => restore_key,
 
 			disk_num => disk_num,
 			
@@ -780,7 +782,7 @@ begin
 	irq_n <= 'Z';
 	nmi_n <= 'Z';
 	irqLoc <= irq_cia1 and irq_vic and irq_n; 
-	nmiLoc <= irq_cia2 and nmi_n;
+	nmiLoc <= irq_cia2 and nmi_n and not restore_key;
 
 -- -----------------------------------------------------------------------
 -- Dummy silence audio output
