@@ -120,270 +120,286 @@ architecture structural of sid_top is
     signal mixed_out_r : signed(17 downto 0) := (others => '0');
 begin
  
-    i_regs: entity work.sid_regs
-    port map (
-        clock       => clock,
-        reset       => reset,
-        
-        addr        => addr,
-        wren        => wren,
-        wdata       => wdata,
-        rdata       => rdata,
-        
-        comb_wave_l => comb_wave_l,
-        comb_wave_r => comb_wave_r,
+	i_regs: entity work.sid_regs
+	port map
+	(
+		clock       => clock,
+		reset       => reset,
 
-    ---
-        voice_osc   => voice_osc,
-        voice_wave  => voice_wave,
-        voice_adsr  => voice_wave,
-        voice_mul   => voice_mul,
-        
-        -- Oscillator parameters
-        freq        => freq,
-        test        => test,
-        sync        => sync,
-        
-        -- Wave map parameters
-        comb_mode   => comb_mode,
-        ring_mod    => ring_mod,
-        wave_sel    => wave_sel,
-        sq_width    => sq_width,
-        
-        -- ADSR parameters
-        gate        => gate,
-        attack      => attack,
-        decay       => decay,
-        sustain     => sustain,
-        release     => release,
+		addr        => addr,
+		wren        => wren,
+		wdata       => wdata,
+		rdata       => rdata,
+
+		comb_wave_l => comb_wave_l,
+		comb_wave_r => comb_wave_r,
+
+		voice_osc   => voice_osc,
+		voice_wave  => voice_wave,
+		voice_adsr  => voice_wave,
+		voice_mul   => voice_mul,
+
+		-- Oscillator parameters
+		freq        => freq,
+		test        => test,
+		sync        => sync,
+
+		-- Wave map parameters
+		comb_mode   => comb_mode,
+		ring_mod    => ring_mod,
+		wave_sel    => wave_sel,
+		sq_width    => sq_width,
+
+		-- ADSR parameters
+		gate        => gate,
+		attack      => attack,
+		decay       => decay,
+		sustain     => sustain,
+		release     => release,
+
+		-- mixer parameters
+		filter_en   => filter_en,
+
+		-- globals
+		volume_l    => volume_l,
+		filter_co_l => filter_co_l,
+		filter_res_l=> filter_res_l,
+		filter_ex_l => open,
+		filter_hp_l => filter_hp_l,    
+		filter_bp_l => filter_bp_l,
+		filter_lp_l => filter_lp_l,
+		voice3_off_l=> voice3_off_l,
+
+		volume_r    => volume_r,
+		filter_co_r => filter_co_r,
+		filter_res_r=> filter_res_r,
+		filter_ex_r => open,
+		filter_hp_r => filter_hp_r,    
+		filter_bp_r => filter_bp_r,
+		filter_lp_r => filter_lp_r,
+		voice3_off_r=> voice3_off_r,
+
+		-- readback
+		osc3        => osc3,
+		env3        => env3
+	);
+
+	i_ctrl: entity work.sid_ctrl
+	generic map
+	(
+		g_num_voices  => g_num_voices
+	)
+	port map
+	(
+		clock       => clock,
+		reset       => reset,
+		start_iter  => start_iter,
+		voice_osc   => voice_osc,
+		enable_osc  => enable_osc
+	);
     
-        -- mixer parameters
-        filter_en   => filter_en,
-
-        -- globals
-        volume_l    => volume_l,
-        filter_co_l => filter_co_l,
-        filter_res_l=> filter_res_l,
-        filter_ex_l => open,
-        filter_hp_l => filter_hp_l,    
-        filter_bp_l => filter_bp_l,
-        filter_lp_l => filter_lp_l,
-        voice3_off_l=> voice3_off_l,
     
-        volume_r    => volume_r,
-        filter_co_r => filter_co_r,
-        filter_res_r=> filter_res_r,
-        filter_ex_r => open,
-        filter_hp_r => filter_hp_r,    
-        filter_bp_r => filter_bp_r,
-        filter_lp_r => filter_lp_r,
-        voice3_off_r=> voice3_off_r,
+	osc: entity work.oscillator
+	generic map
+	(
+		g_num_voices
+	)
+	port map
+	(
+		clock    => clock,
+		reset    => reset,
 
-        -- readback
-        osc3        => osc3,
-        env3        => env3 );
+		voice_i  => voice_osc,
+		voice_o  => voice_wave,
 
+		enable_i => enable_osc,
+		enable_o => enable_wave,
 
-    i_ctrl: entity work.sid_ctrl
-    generic map (
-        g_num_voices  => g_num_voices )
-    port map (
-        clock       => clock,
-        reset       => reset,
+		freq     => freq,
+		test     => test,
+		sync     => sync,
+
+		osc_val   => osc_val,
+		test_o    => test_wave,
+		carry_20  => carry_20,
+		msb_other => msb_other
+	);
     
-        start_iter  => start_iter,
+	wmap: entity work.wave_map
+	generic map
+	(
+		g_num_voices  => g_num_voices,
+		g_sample_bits => 12
+	)
+	port map
+	(
+		clock     => clock,
+		reset     => reset,
+		test      => test_wave,
         
-        voice_osc   => voice_osc,
-        enable_osc  => enable_osc );
+		osc_val   => osc_val,
+		carry_20  => carry_20,
+		msb_other => msb_other,
+        
+		voice_i   => voice_wave,
+		enable_i  => enable_wave,
+		comb_mode => comb_mode,
+		wave_sel  => wave_sel,
+		ring_mod  => ring_mod,
+		sq_width  => sq_width,
     
+		voice_o   => voice_mul,
+		enable_o  => enable_mul,
+		wave_out  => waveform
+	);
+
+	adsr: entity work.adsr_multi
+	generic map
+	(
+		g_num_voices => g_num_voices
+	)
+	port map
+	(
+		clock    => clock,
+		reset    => reset,
     
-    osc: entity work.oscillator
-    generic map (g_num_voices)
-    port map (
-        clock    => clock,
-        reset    => reset,
+		voice_i  => voice_wave,
+		enable_i => enable_wave,
+		voice_o  => open,
+		enable_o => open,
 
-        voice_i  => voice_osc,
-        voice_o  => voice_wave,
+		gate     => gate,
+		attack   => attack,
+		decay    => decay,
+		sustain  => sustain,
+		release  => release,
 
-        enable_i => enable_osc,
-        enable_o => enable_wave,
+		env_state=> open, -- for testing only
+		env_out  => enveloppe
+	);
 
-        freq     => freq,
-        test     => test,
-        sync     => sync,
+	sum: entity work.mult_acc(signed_wave)
+	port map
+	(
+		clock       => clock,
+		reset       => reset,
 
-        osc_val   => osc_val,
-        test_o    => test_wave,
-        carry_20  => carry_20,
-        msb_other => msb_other );
-    
-    wmap: entity work.wave_map
-    generic map (
-        g_num_voices  => g_num_voices,
-        g_sample_bits => 12 )
-    port map (
-        clock     => clock,
-        reset     => reset,
-        test      => test_wave,
-        
-        osc_val   => osc_val,
-        carry_20  => carry_20,
-        msb_other => msb_other,
-        
-        voice_i   => voice_wave,
-        enable_i  => enable_wave,
-        comb_mode => comb_mode,
-        wave_sel  => wave_sel,
-        ring_mod  => ring_mod,
-        sq_width  => sq_width,
-    
-        voice_o   => voice_mul,
-        enable_o  => enable_mul,
-        wave_out  => waveform );
+		voice_i     => voice_mul,
+		enable_i    => enable_mul,
+		voice3_off_l=> voice3_off_l,
+		voice3_off_r=> voice3_off_r,
 
-    adsr: entity work.adsr_multi
-    generic map (
-        g_num_voices => g_num_voices )
-    port map (
-        clock    => clock,
-        reset    => reset,
-    
-        voice_i  => voice_wave,
-        enable_i => enable_wave,
-        voice_o  => open,
-        enable_o => open,
-                
-        gate     => gate,
-        attack   => attack,
-        decay    => decay,
-        sustain  => sustain,
-        release  => release,
-        
-        env_state=> open, -- for testing only
-        env_out  => enveloppe );
-        
+		enveloppe   => enveloppe,
+		waveform    => waveform,
+		filter_en   => filter_en,
 
-    sum: entity work.mult_acc(signed_wave)
-    port map (
-        clock       => clock,
-        reset       => reset,
-        
-        voice_i     => voice_mul,
-        enable_i    => enable_mul,
-        voice3_off_l=> voice3_off_l,
-        voice3_off_r=> voice3_off_r,
-            
-        enveloppe   => enveloppe,
-        waveform    => waveform,
-        filter_en   => filter_en,
-        --
-        osc3        => osc3,
-        env3        => env3,
-        --
-        valid_out    => valid_sum,
-        filter_out_L => filter_out_L,
-        filter_out_R => filter_out_R,
-        direct_out_L => direct_out_L,
-        direct_out_R => direct_out_R );
+		osc3        => osc3,
+		env3        => env3,
 
+		valid_out    => valid_sum,
+		filter_out_L => filter_out_L,
+		filter_out_R => filter_out_R,
+		direct_out_L => direct_out_L,
+		direct_out_R => direct_out_R
+	);
 
-    i_filt_left: entity work.sid_filter
-    generic map (
-        g_divider   => g_filter_div )
-    port map (
-        clock       => clock,
-        reset       => reset,
-		  enable      => extfilter_en,
-        
-        filt_co     => filter_co_l,
-        filt_res    => filter_res_l,
-    
-        valid_in    => valid_sum,
-        
-        input       => filter_out_L,
-        high_pass   => high_pass_L,
-        band_pass   => band_pass_L,
-        low_pass    => low_pass_L,
-    
-        error_out   => open,
-        valid_out   => valid_filt );
+	i_filt_left: entity work.sid_filter
+	generic map
+	(
+		g_divider   => g_filter_div
+	)
+	port map
+	(
+		clock       => clock,
+		reset       => reset,
+		enable      => extfilter_en,
 
--- Now we have to add the following signals together:
--- direct_out
--- high_pass  (when filter_hp='1')
--- band_pass  (when filter_bp='1')
--- low_pass   (when filter_lp='1')
---
--- .. and apply the final volume control
+		filt_co     => filter_co_l,
+		filt_res    => filter_res_l,
 
-    mix: entity work.sid_mixer
-    port map (
-        clock       => clock,
-        reset       => reset,
+		valid_in    => valid_sum,
 
-        valid_in    => valid_filt,
-        
-        direct_out  => direct_out_L,
-        high_pass   => high_pass_L,
-        band_pass   => band_pass_L,
-        low_pass    => low_pass_L,
-        
-        filter_hp   => filter_hp_l,
-        filter_bp   => filter_bp_l,
-        filter_lp   => filter_lp_l,
-        
-        volume      => volume_l,
-        
-        mixed_out   => mixed_out_L,
-        valid_out   => open );
+		input       => filter_out_L,
+		high_pass   => high_pass_L,
+		band_pass   => band_pass_L,
+		low_pass    => low_pass_L,
 
-    r_right_filter: if g_num_voices > 8 generate
-        i_filt: entity work.sid_filter
-        generic map (
-            g_divider   => g_filter_div )
-        port map (
-            clock       => clock,
-            reset       => reset,
-            enable      => extfilter_en,
+		error_out   => open,
+		valid_out   => valid_filt
+	);
 
-            filt_co     => filter_co_r,
-            filt_res    => filter_res_r,
+	mix: entity work.sid_mixer
+	port map
+	(
+		clock       => clock,
+		reset       => reset,
 
-            valid_in    => valid_sum,
+		valid_in    => valid_filt,
 
-            input       => filter_out_R,
-            high_pass   => high_pass_R,
-            band_pass   => band_pass_R,
-            low_pass    => low_pass_R,
+		direct_out  => direct_out_L,
+		high_pass   => high_pass_L,
+		band_pass   => band_pass_L,
+		low_pass    => low_pass_L,
 
-            error_out   => open,
-            valid_out   => open );
+		filter_hp   => filter_hp_l,
+		filter_bp   => filter_bp_l,
+		filter_lp   => filter_lp_l,
 
-        mix_right: entity work.sid_mixer
-        port map (
-            clock       => clock,
-            reset       => reset,
+		volume      => volume_l,
 
-            valid_in    => valid_filt,
+		mixed_out   => mixed_out_L,
+		valid_out   => open
+	);
 
-            direct_out  => direct_out_R,
-            high_pass   => high_pass_R,
-            band_pass   => band_pass_R,
-            low_pass    => low_pass_R,
+	i_filt_right: entity work.sid_filter
+	generic map
+	(
+		g_divider   => g_filter_div
+	)
+	port map
+	(
+		clock       => clock,
+		reset       => reset,
+		enable      => extfilter_en,
 
-            filter_hp   => filter_hp_r,
-            filter_bp   => filter_bp_r,
-            filter_lp   => filter_lp_r,
+		filt_co     => filter_co_r,
+		filt_res    => filter_res_r,
 
-            volume      => volume_r,
+		valid_in    => valid_sum,
 
-            mixed_out   => mixed_out_R,
-            valid_out   => open );
+		input       => filter_out_R,
+		high_pass   => high_pass_R,
+		band_pass   => band_pass_R,
+		low_pass    => low_pass_R,
 
-    end generate;
+		error_out   => open,
+		valid_out   => open
+	);
 
-    sample_left  <= mixed_out_L;
-    sample_right <= mixed_out_R when g_num_voices > 8 else mixed_out_L;
-    
+	mix_right: entity work.sid_mixer
+	port map
+	(
+		clock       => clock,
+		reset       => reset,
+
+		valid_in    => valid_filt,
+
+		direct_out  => direct_out_R,
+		high_pass   => high_pass_R,
+		band_pass   => band_pass_R,
+		low_pass    => low_pass_R,
+
+		filter_hp   => filter_hp_r,
+		filter_bp   => filter_bp_r,
+		filter_lp   => filter_lp_r,
+
+		volume      => volume_r,
+
+		mixed_out   => mixed_out_R,
+		valid_out   => open
+	);
+
+	sample_left  <= mixed_out_L;
+	sample_right <= mixed_out_R;
+
 end structural;

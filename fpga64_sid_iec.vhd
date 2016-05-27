@@ -687,45 +687,19 @@ begin
 		end if;
 	end process;
 
-	mainMemoryBus: process(sysCycle, cia2_pao, cpuDo, cs_ram, phi0_cpu, phi0_vic, cpuWe, systemWe, systemAddr)
-	begin
-		ramAddr <= (others => '0');
-		if (phi0_cpu = '1') or (phi0_vic = '1') then
-			ramAddr <= systemAddr;
-		end if;
-
-		if (phi0_cpu = '1') and (cpuWe = '1') then
-			ramDataOut <= cpuDo;
-		elsif sysCycle >= CYCLE_IEC0 and sysCycle <= CYCLE_IEC3 then --IEC write
-			ramdataout(5)<= cia2_pao(5);
-			iec_data_o <= cia2_pao(5);
-			ramdataout(4)<= cia2_pao(4);
-			iec_clk_o <= cia2_pao(4);
-			ramdataout(3)<= cia2_pao(3);
-			iec_atn_o <= cia2_pao(3);
-			ramdataout(2)<= '0';   --lptstrobe
-		end if;
-
-		ramCE <= '1';
-
-		-- TH no ram access during idle phase
-		if sysCycle /= CYCLE_IDLE0 and sysCycle /= CYCLE_IDLE1 and sysCycle /= CYCLE_IDLE2 and 
+	iec_data_o <= cia2_pao(5);
+	iec_clk_o <= cia2_pao(4);
+	iec_atn_o <= cia2_pao(3);
+	ramDataOut <= "00" & cia2_pao(5 downto 3) & "000" when sysCycle >= CYCLE_IEC0 and sysCycle <= CYCLE_IEC3 else cpuDo;
+	ramAddr <= systemAddr when (phi0_cpu = '1') or (phi0_vic = '1') else (others => '0');
+	ramWe <= '0' when sysCycle = CYCLE_IEC2 or sysCycle = CYCLE_IEC3 else not systemWe;
+	ramCE <= '0' when sysCycle /= CYCLE_IDLE0 and sysCycle /= CYCLE_IDLE1 and sysCycle /= CYCLE_IDLE2 and 
 		   sysCycle /= CYCLE_IDLE3 and sysCycle /= CYCLE_IDLE4 and sysCycle /= CYCLE_IDLE5 and
 		   sysCycle /= CYCLE_IDLE6 and sysCycle /= CYCLE_IDLE7 and sysCycle /= CYCLE_IDLE8 and
 		   sysCycle /= CYCLE_IEC0 and sysCycle /= CYCLE_IEC1 and sysCycle /= CYCLE_IEC2 and 
-		   sysCycle /= CYCLE_IEC3 then
-			
-		ramWe <= not systemWe;
-		if sysCycle = CYCLE_IEC2 or sysCycle = CYCLE_IEC3 then
-			ramWe <= '0';
-		elsif cs_ram = '1' then
-			if sysCycle /= CYCLE_CPU0 and sysCycle /= CYCLE_CPU1 and sysCycle /= CYCLE_CPUF then
-				ramCE <= '0';
-			end if;
-		end if;
-		end if;
-	end process;
-	
+		   sysCycle /= CYCLE_IEC3 and sysCycle /= CYCLE_CPU0 and sysCycle /= CYCLE_CPU1 and sysCycle /= CYCLE_CPUF and
+			cs_ram = '1' else '1';
+
 	process(clk32)
 	begin
 		if rising_edge(clk32) then
