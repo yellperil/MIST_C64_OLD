@@ -133,7 +133,7 @@ begin
 	
 	--
 	--begin
-	process(ramData, vicData, sidData, colorData, cia1Data, cia2Data, cs_ramReg, cs_vicReg, cs_sidReg, cs_colorReg, cs_cia1Reg, cs_cia2Reg, lastVicData)
+	process(ramData, vicData, sidData, colorData, cia1Data, cia2Data, charData, romData, cs_romHReg, cs_romLReg, cs_romReg, cs_CharReg, cs_ramReg, cs_vicReg, cs_sidReg, cs_colorReg, cs_cia1Reg, cs_cia2Reg, lastVicData)
 	begin
 		-- If no hardware is addressed the bus is floating.
 		-- It will contain the last data read by the VIC. (if a C64 is shielded correctly)

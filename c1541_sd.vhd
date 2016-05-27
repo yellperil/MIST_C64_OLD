@@ -60,23 +60,22 @@ end c1541_sd;
 
 architecture struct of c1541_sd is
 
-signal ram_write_addr : unsigned(12 downto 0);
-signal ram_addr       : unsigned(12 downto 0);
-signal ram_di         : unsigned( 7 downto 0);
-signal ram_do         : unsigned( 7 downto 0);
-signal ram_we         : std_logic;
-signal do             : std_logic_vector(7 downto 0); -- disk read data
-signal mode           : std_logic;                    -- read/write
-signal stp            : std_logic_vector(1 downto 0); -- stepper motor control
-signal stp_r          : std_logic_vector(1 downto 0); -- stepper motor control
-signal mtr            : std_logic ;                   -- stepper motor on/off
-signal freq           : std_logic_vector(1 downto 0); -- motor (gcr_bit) frequency
-signal sync_n         : std_logic;                    -- reading SYNC bytes
-signal byte_n         : std_logic;                    -- byte ready
-signal act            : std_logic;                    -- activity LED
-signal track_dbl      : std_logic_vector(6 downto 0);
-signal sd_busy        : std_logic;
-signal track_read_adr : std_logic_vector(12 downto 0);
+	signal ram_write_addr : unsigned(12 downto 0);
+	signal ram_addr       : unsigned(12 downto 0);
+	signal ram_di         : unsigned( 7 downto 0);
+	signal ram_do         : unsigned( 7 downto 0);
+	signal ram_we         : std_logic;
+	signal do             : std_logic_vector(7 downto 0); -- disk read data
+	signal mode           : std_logic;                    -- read/write
+	signal stp            : std_logic_vector(1 downto 0); -- stepper motor control
+	signal mtr            : std_logic ;                   -- stepper motor on/off
+	signal freq           : std_logic_vector(1 downto 0); -- motor (gcr_bit) frequency
+	signal sync_n         : std_logic;                    -- reading SYNC bytes
+	signal byte_n         : std_logic;                    -- byte ready
+	signal act            : std_logic;                    -- activity LED
+	signal sd_busy        : std_logic;
+	signal track_read_adr : std_logic_vector(12 downto 0);
+	signal track          : std_logic_vector(5 downto 0);
 
 begin
 	
@@ -122,50 +121,20 @@ begin
 	port map
 	(
 		clk32  => clk32,
+		reset  => reset,
 
 		do     => do,     -- disk read data
-		mode   => mode,   -- read/write
 		stp    => stp,    -- stepper motor control
 		mtr    => mtr,    -- stepper motor on/off
-		freq   => freq,   -- motor (gcr_bit) frequency
 		sync_n => sync_n, -- reading SYNC bytes
 		byte_n => byte_n, -- byte ready
 		
-		track       => track_dbl(6 downto 1),
+		track       => track,
 		track_adr   => track_read_adr,
 		track_data  => std_logic_vector(ram_do), 	
 		track_ready => not sd_busy
 	);
 	
-	process (clk32)
-	begin
-		if rising_edge(clk32) then
-			stp_r <= stp;
-			if reset = '1' then
-				track_dbl <= "0000010";
-			else
-				if mtr = '1' then
-					if(  (stp_r = "00" and stp = "10")
-						or (stp_r = "10" and stp = "01")
-						or (stp_r = "01" and stp = "11")
-						or (stp_r = "11" and stp = "00")) then
-							if track_dbl < "1010000" then
-								track_dbl <= std_logic_vector(unsigned(track_dbl) + 1);
-							end if;
-					end if;
-				
-					if(  (stp_r = "00" and stp = "11")
-						or (stp_r = "10" and stp = "00")
-						or (stp_r = "01" and stp = "10")
-						or (stp_r = "11" and stp = "01")) then 
-							if track_dbl > "0000001" then
-								track_dbl <= std_logic_vector(unsigned(track_dbl) - 1);
-							end if;
-					end if;
-				end if;
-			end if;
-		end if;
-	end process;
 
 
 	sd_spi : entity work.spi_controller
@@ -175,20 +144,19 @@ begin
 		MOSI => sd_cmd,  --: out std_logic;     -- Data to card (master out slave in)
 		MISO => sd_dat,  --: in  std_logic;     -- Data from card (master in slave out)
 		SCLK => sd_clk,  --: out std_logic;     -- Card clock
-  
+
 		ram_write_addr => ram_write_addr, --: out unsigned(13 downto 0);
 		ram_di         => ram_di,         --: out unsigned(7 downto 0);
 		ram_we         => ram_we,         
-  
-      change => disk_change,
-		track => unsigned(track_dbl(6 downto 1)),
-		image => unsigned(disk_num),
-  
+
+      change  => disk_change,
+		track   => unsigned(track),
+
 		CLK_14M => clk18,
 		reset   => reset, 
-		busy => sd_busy
+		busy    => sd_busy
 	);
-	
+
 	track_buffer : entity work.gen_ram
 	generic map
 	(
@@ -203,9 +171,8 @@ begin
 		d    => ram_di,
 		q    => ram_do
 	);
-	
+
 	with sd_busy select 
---		ram_addr <= ram_write_addr when '1', unsigned('0'&track_read_adr) when others; 
 		ram_addr <= ram_write_addr when '1', unsigned(track_read_adr) when others; 
 
 	led(0)          <= mode;     -- read/write

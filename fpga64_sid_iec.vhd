@@ -93,7 +93,6 @@ entity fpga64_sid_iec is
 		iec_atn_i	: in  std_logic;
 		
 		disk_num    : out std_logic_vector(7 downto 0);
-		dbg_num     : out std_logic_vector(2 downto 0);
 
 		c64rom_addr : in std_logic_vector(13 downto 0);
 		c64rom_data : in std_logic_vector(7 downto 0);
@@ -652,9 +651,8 @@ begin
 			reset_key => reset_key,
 
 			disk_num => disk_num,
-			dbg_num => dbg_num,
 			
-			backwardsReadingEnabled => '0'
+			backwardsReadingEnabled => '1'
 		);
 
 -- -----------------------------------------------------------------------
@@ -689,7 +687,7 @@ begin
 		end if;
 	end process;
 
-	mainMemoryBus: process(sysCycle, cpuDo, cs_ram, phi0_cpu, phi0_vic, cpuWe, systemWe, systemAddr)
+	mainMemoryBus: process(sysCycle, cia2_pao, cpuDo, cs_ram, phi0_cpu, phi0_vic, cpuWe, systemWe, systemAddr)
 	begin
 		ramAddr <= (others => '0');
 		if (phi0_cpu = '1') or (phi0_vic = '1') then

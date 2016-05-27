@@ -51,8 +51,7 @@ entity fpga64_keyboard_matrix is
 		videoKey : out std_logic;
 		traceKey : out std_logic;
 		trace2Key : out std_logic;
-	  disk_num : out std_logic_vector(7 downto 0);
-	  dbg_num : out std_logic_vector(2 downto 0);
+		disk_num : out std_logic_vector(7 downto 0);
 		
 		-- Config
 		-- backwardsReadingEnabled = 1 allows reversal of PIA registers to still work.
@@ -150,9 +149,6 @@ architecture rtl of fpga64_keyboard_matrix is
 	-- for disk image selection
 	signal diskChgKey : std_logic;
 	signal disk_nb : std_logic_vector(7 downto 0);
-	-- for debug display selection
-	signal dbgChgKey : std_logic;
-	signal dbg_nb : std_logic_vector(2 downto 0);
 	
 begin
 
@@ -166,18 +162,10 @@ begin
 				  disk_nb <= disk_nb + 1;					
 				end if;
 			end if;
-			if dbgChgKey = '1' then
-				if key_shiftl = '1' then
-				  dbg_nb <= dbg_nb - 1;
-				else
-				  dbg_nb <= dbg_nb + 1;					
-				end if;
-			end if;
 		end if;
 	end process;
 
 	disk_num <= disk_nb;
-	dbg_num <= dbg_nb;
 	--
 	-- cycle though joystick emulation options on <F11>	
 	--
@@ -370,7 +358,6 @@ begin
 			videoKey <= '0';
 			joySelKey <= '0';
 			diskChgKey <= '0';
-			dbgChgKey <= '0';
 			if newScanCode = '1' then
 				if theScanCode=X"F0" then
 					releaseFlag <= '1';		
@@ -400,10 +387,6 @@ begin
 					when X"0B" => -- F6
 						if releaseFlag = '0' then
 							trace2Key <= '1';
-						end if;
-					when X"0C" => -- F4
-						if releaseFlag = '0' then
-							dbgChgKey <= '1';
 						end if;
 					when X"83" => key_F7 <= not releaseFlag;
 	--				when X"0D" => key_runstop <= not releaseFlag;

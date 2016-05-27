@@ -177,8 +177,8 @@ wire [7:0] WRITE_DATA_RESPONSE = 8'h05;
 assign io_conf = (csd_wptr == 0);  // csd_wptr still 0 -> configuration required
 
 // the 32 bytes as sent from the io controller
-reg [7:0] cid [15:0];
-reg [7:0] csd [15:0];
+(* ramstyle = "logic" *) reg [7:0] cid [15:0];
+(* ramstyle = "logic" *) reg [7:0] csd [15:0];
 reg [7:0] conf;
 
 reg [7:0] cid_byte;
