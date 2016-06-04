@@ -43,16 +43,18 @@ port
 	iec_data_o     : out std_logic;
 	iec_clk_o      : out std_logic;
 
-	io_lba         : out std_logic_vector(31 downto 0);
-	io_rd          : out std_logic;
-	io_wr          : out std_logic;
-	io_ack         : in  std_logic;
-	io_sdhc        : out std_logic;
-	io_conf        : out std_logic;
-	io_din         : in  std_logic_vector(7 downto 0);
-	io_din_strobe  : in  std_logic;
-	io_dout        : out std_logic_vector(7 downto 0);
-	io_dout_strobe : in  std_logic;
+	sd_lba         : out std_logic_vector(31 downto 0);
+	sd_rd          : out std_logic;
+	sd_wr          : out std_logic;
+	sd_ack         : in  std_logic;
+	sd_ack_conf    : in  std_logic;
+
+	sd_sdhc        : out std_logic;
+	sd_conf        : out std_logic;
+	sd_buff_addr   : in  std_logic_vector(8 downto 0);
+	sd_buff_dout   : in  std_logic_vector(7 downto 0);
+	sd_buff_din    : out std_logic_vector(7 downto 0);
+	sd_buff_wr     : in  std_logic;
 
 	led            : out std_logic_vector(7 downto 0);
 
@@ -142,16 +144,18 @@ begin
 	sd_spi : entity work.spi_controller
 	port map
 	(
-		io_lba => io_lba,
-		io_rd  => io_rd,
-		io_wr  => io_wr,
-		io_ack => io_ack,
-		io_conf => io_conf,
-		io_sdhc => io_sdhc,
-		io_din => io_din,
-		io_din_strobe => io_din_strobe,
-		io_dout => io_dout,
-		io_dout_strobe => io_dout_strobe,
+		sd_lba  => sd_lba,
+		sd_rd   => sd_rd,
+		sd_wr   => sd_wr,
+		sd_ack  => sd_ack,
+		sd_conf => sd_conf,
+		sd_sdhc => sd_sdhc,
+		sd_ack_conf => sd_ack_conf,
+
+		sd_buff_addr => sd_buff_addr,
+		sd_buff_dout => sd_buff_dout,
+		sd_buff_din  => sd_buff_din,
+		sd_buff_wr   => sd_buff_wr,
 
 		ram_write_addr => ram_write_addr, --: out unsigned(13 downto 0);
 		ram_di         => ram_di,         --: out unsigned(7 downto 0);

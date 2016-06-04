@@ -341,7 +341,9 @@ set_global_assignment -name VHDL_FILE pll.vhd
 set_global_assignment -name VHDL_FILE c1541_logic.vhd
 set_global_assignment -name VHDL_FILE c1541_sd.vhd
 set_global_assignment -name VHDL_FILE gcr_floppy.vhd
+set_global_assignment -name VERILOG_FILE sd_controller.v
 set_global_assignment -name VERILOG_FILE sd_card.v
+set_global_assignment -name VERILOG_FILE sdbuf.v
 set_global_assignment -name VHDL_FILE rom_C64.vhd
 set_global_assignment -name VHDL_FILE rom_C1541.vhd
 set_global_assignment -name VHDL_FILE rom_c64_chargen.vhd
@@ -350,8 +352,7 @@ set_global_assignment -name VERILOG_FILE sdram.v
 set_global_assignment -name SYSTEMVERILOG_FILE sram.sv
 set_global_assignment -name VHDL_FILE gen_rwram.vhd
 set_global_assignment -name VHDL_FILE gen_ram.vhd
-set_global_assignment -name VERILOG_FILE user_io.v
-set_global_assignment -name VERILOG_FILE data_io.v
+set_global_assignment -name VERILOG_FILE mist_io.v
 set_global_assignment -name VERILOG_FILE scandoubler.v
 set_global_assignment -name VERILOG_FILE osd.v
 set_global_assignment -name VHDL_FILE fpga64_keyboard_matrix_mark_mcdougall.vhd

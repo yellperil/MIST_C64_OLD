@@ -23,16 +23,18 @@ generic (
 
 port (
 	-- Card Interface ---------------------------------------------------------
-	io_lba         : out std_logic_vector(31 downto 0);
-	io_rd          : out std_logic;
-	io_wr          : out std_logic;
-	io_ack         : in  std_logic;
-	io_sdhc        : out std_logic;
-	io_conf        : out std_logic;
-	io_din         : in  std_logic_vector(7 downto 0);
-	io_din_strobe  : in  std_logic;
-	io_dout        : out std_logic_vector(7 downto 0);
-	io_dout_strobe : in  std_logic;
+	sd_lba         : out std_logic_vector(31 downto 0);
+	sd_rd          : out std_logic;
+	sd_wr          : out std_logic;
+	sd_ack         : in  std_logic;
+	sd_ack_conf    : in  std_logic;
+	sd_sdhc        : out std_logic;
+	sd_conf        : out std_logic;
+
+	sd_buff_addr   : in  std_logic_vector(8 downto 0);
+	sd_buff_dout   : in  std_logic_vector(7 downto 0);
+	sd_buff_din    : out std_logic_vector(7 downto 0);
+	sd_buff_wr     : in  std_logic;
 
 	-- Track buffer Interface -------------------------------------------------
 	ram_write_addr : out unsigned(12 downto 0);
@@ -53,22 +55,27 @@ architecture rtl of spi_controller is
 
 	component sd_card port
 	(
-		io_lba    : out std_logic_vector(31 downto 0);
-		io_rd     : out std_logic;
-		io_wr     : out std_logic;
-		io_ack    : in  std_logic;
-		io_sdhc   : out std_logic;
-		io_conf   : out std_logic;
-		io_din    : in  std_logic_vector(7 downto 0);
-		io_din_strobe: in  std_logic;
-		io_dout   : out std_logic_vector(7 downto 0);
-		io_dout_strobe : in std_logic;
-		allow_sdhc: in  std_logic;
+		clk_sys      : in  std_logic;
+		
+		allow_sdhc   : in  std_logic;
+		sd_conf      : out std_logic;
+		sd_sdhc      : out std_logic;
 
-		sd_cs     : in  std_logic;
-		sd_sck    : in  std_logic;
-		sd_sdi    : in  std_logic;
-		sd_sdo    : out std_logic
+		sd_lba       : out std_logic_vector(31 downto 0);
+		sd_rd        : out std_logic;
+		sd_wr        : out std_logic;
+		sd_ack       : in  std_logic;
+		sd_ack_conf  : in  std_logic;
+
+		sd_buff_addr : in  std_logic_vector(8 downto 0);
+		sd_buff_dout : in  std_logic_vector(7 downto 0);
+		sd_buff_din  : out std_logic_vector(7 downto 0);
+		sd_buff_wr   : in  std_logic;
+
+		spi_ss       : in  std_logic;
+		spi_clk      : in  std_logic;
+		spi_di       : in  std_logic;
+		spi_do       : out std_logic
 	);
 	end component sd_card;
 
@@ -141,23 +148,26 @@ begin
 	sd_card_d: sd_card
 	port map
 	(
-		io_lba => io_lba,
-		io_rd  => io_rd,
-		io_wr  => io_wr,
-		io_ack => io_ack,
-		io_conf => io_conf,
-		io_sdhc => io_sdhc,
-		io_din => io_din,
-		io_din_strobe => io_din_strobe,
-		io_dout => io_dout,
-		io_dout_strobe => io_dout_strobe,
- 
-		allow_sdhc  => '1',
+		clk_sys => clk,
 
-		sd_cs  => CS_N,
-		sd_sck => SCLK,
-		sd_sdi => MOSI,
-		sd_sdo => MISO
+		sd_lba  => sd_lba,
+		sd_rd   => sd_rd,
+		sd_wr   => sd_wr,
+		sd_ack  => sd_ack,
+		sd_conf => sd_conf,
+		sd_sdhc => sd_sdhc,
+		sd_ack_conf => sd_ack_conf,
+
+		sd_buff_addr => sd_buff_addr,
+		sd_buff_dout => sd_buff_dout,
+		sd_buff_din  => sd_buff_din,
+		sd_buff_wr   => sd_buff_wr,
+		allow_sdhc   => '1',
+
+		spi_ss   => CS_N,
+		spi_clk  => SCLK,
+		spi_di   => MOSI,
+		spi_do   => MISO
 	);
 
 	-- set reload flag whenever "change" rises and clear it once the	

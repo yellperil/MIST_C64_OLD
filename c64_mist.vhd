@@ -122,7 +122,7 @@ component sram is port
 end component;
 
 ---------
--- User IO
+-- Mist IO
 ---------
 
 -- config string used by the io controller to fill the OSD
@@ -143,39 +143,56 @@ begin
   return rval; 
 end function; 
 
-component user_io generic ( STRLEN : integer := 0 ); port
-(
-	SPI_CLK, SPI_SS_IO, SPI_MOSI :in std_logic;
-	SPI_MISO     : out std_logic;
-	conf_str     : in  std_logic_vector(8*STRLEN-1 downto 0);
 
-	switches     : out std_logic_vector(1 downto 0);
-	buttons      : out std_logic_vector(1 downto 0);
+component mist_io generic(STRLEN : integer := 0 ); port
+(
+	clk_sys           : in  std_logic;
+
+	SPI_SCK           : in  std_logic;
+	CONF_DATA0        : in  std_logic;
+	SPI_SS2           : in  std_logic;
+	SPI_DI            : in  std_logic;
+	SPI_DO            : out std_logic;
+	conf_str          : in  std_logic_vector(8*STRLEN-1 downto 0);
+
+	switches          : out std_logic_vector(1 downto 0);
+	buttons           : out std_logic_vector(1 downto 0);
 	scandoubler_disable : out std_logic;
 
-	joystick_0   : out std_logic_vector(7 downto 0);
-	joystick_1   : out std_logic_vector(7 downto 0);
+	joystick_0        : out std_logic_vector(7 downto 0);
+	joystick_1        : out std_logic_vector(7 downto 0);
 	joystick_analog_0 : out std_logic_vector(15 downto 0);
 	joystick_analog_1 : out std_logic_vector(15 downto 0);
-	status       : out std_logic_vector(7 downto 0);
+	status            : out std_logic_vector(7 downto 0);
 
-	sd_lba       : in  std_logic_vector(31 downto 0);
-	sd_rd        : in  std_logic;
-	sd_wr        : in  std_logic;
-	sd_ack       : out std_logic;
-	sd_conf      : in  std_logic;
-	sd_sdhc      : in  std_logic;
-	sd_dout      : out std_logic_vector(7 downto 0);
-	sd_dout_strobe: out std_logic;
-	sd_din       : in  std_logic_vector(7 downto 0);
-	sd_din_strobe: out std_logic;
-	sd_change    : out std_logic;
+	sd_lba            : in  std_logic_vector(31 downto 0);
+	sd_rd             : in  std_logic;
+	sd_wr             : in  std_logic;
+	sd_ack            : out std_logic;
+	sd_ack_conf       : out std_logic;
+	sd_conf           : in  std_logic;
+	sd_sdhc           : in  std_logic;
+	sd_mounted        : out std_logic;
+	sd_buff_addr      : out std_logic_vector(8 downto 0);
+	sd_buff_dout      : out std_logic_vector(7 downto 0);
+	sd_buff_din       : in  std_logic_vector(7 downto 0);
+	sd_buff_wr        : out std_logic;
+	
+	ps2_kbd_clk       : out std_logic;
+	ps2_kbd_data      : out std_logic;
 
-	ps2_clk      : in  std_logic;
-	ps2_kbd_clk  : out std_logic;
-	ps2_kbd_data : out std_logic
+	ps2_mouse_clk     : out std_logic;
+	ps2_mouse_data    : out std_logic;
+
+	ioctl_force_erase : in  std_logic;
+	ioctl_download    : out std_logic;
+	ioctl_erasing     : out std_logic;
+	ioctl_index       : out std_logic_vector(4 downto 0);
+	ioctl_wr          : out std_logic;
+	ioctl_addr        : out std_logic_vector(24 downto 0);
+	ioctl_dout        : out std_logic_vector(7 downto 0)
 );
-end component user_io;
+end component mist_io;
 
 ---------
 -- OSD
@@ -230,29 +247,6 @@ component scandoubler is port
 );
 end component;
 	
-----------
--- data_io
-----------
-
-component data_io port
-(
-	-- io controller spi interface
-	sck       : in  std_logic;
-	ss        : in  std_logic;
-	sdi       : in  std_logic;
-
-	downloading: out std_logic;
-	size      : out std_logic_vector(15 downto 0);
-   index     : out std_logic_vector(4 downto 0);
-
-	-- external ram interface
-	clk       : in  std_logic;
-	wr        : out std_logic;
-	a         : out std_logic_vector(15 downto 0);
-	d         : out std_logic_vector(7 downto 0)
-);
-end component data_io;
-
 ---------
 -- audio
 ---------
@@ -278,7 +272,7 @@ end component sigma_delta_dac;
 	
 	-- signals to connect "data_io" for direct PRG injection
 	signal ioctl_wr: std_logic;
-	signal ioctl_addr: std_logic_vector(15 downto 0);
+	signal ioctl_addr: std_logic_vector(24 downto 0);
 	signal ioctl_data: std_logic_vector(7 downto 0);
 	signal ioctl_index: std_logic_vector(4 downto 0);
 	signal ioctl_ram_addr: std_logic_vector(15 downto 0);
@@ -316,12 +310,13 @@ end component sigma_delta_dac;
 	signal sd_rd          : std_logic;
 	signal sd_wr          : std_logic;
 	signal sd_ack         : std_logic;
+	signal sd_ack_conf    : std_logic;
 	signal sd_conf        : std_logic;
 	signal sd_sdhc        : std_logic;
-	signal sd_dout        : std_logic_vector(7 downto 0);
-	signal sd_dout_strobe : std_logic;
-	signal sd_din         : std_logic_vector(7 downto 0);
-	signal sd_din_strobe  : std_logic;
+	signal sd_buff_addr   : std_logic_vector(8 downto 0);
+	signal sd_buff_dout   : std_logic_vector(7 downto 0);
+	signal sd_buff_din    : std_logic_vector(7 downto 0);
+	signal sd_buff_wr     : std_logic;
 	signal sd_change      : std_logic;
 	
 	-- these need to be redirected to the SDRAM
@@ -394,13 +389,16 @@ begin
 	iec_cycle <= '1' when ces = "1011" else '0';
 		
 	-- User io
-	user_io_d : user_io
+	mist_io_d : mist_io
 	generic map (STRLEN => CONF_STR'length)
 	port map (
-		SPI_CLK => SPI_SCK,
-		SPI_SS_IO => CONF_DATA0,
-		SPI_MISO => SPI_DO,
-		SPI_MOSI => SPI_DI,
+		clk_sys => clk32,
+
+		SPI_SCK => SPI_SCK,
+		CONF_DATA0 => CONF_DATA0,
+		SPI_SS2 => SPI_SS2,
+		SPI_DO => SPI_DO,
+		SPI_DI => SPI_DI,
 
 		joystick_0 => joyA,
 		joystick_1 => joyB,
@@ -415,19 +413,26 @@ begin
 		sd_rd => sd_rd,
 		sd_wr => sd_wr,
 		sd_ack => sd_ack,
+		sd_ack_conf => sd_ack_conf,
 		sd_conf => sd_conf,
 		sd_sdhc => sd_sdhc,
-		sd_dout => sd_dout,
-		sd_dout_strobe => sd_dout_strobe,
-		sd_din => sd_din,
-		sd_din_strobe => sd_din_strobe,
-		sd_change => sd_change,
 
-		ps2_clk => clkdiv(9),
+		sd_buff_addr => sd_buff_addr,
+		sd_buff_dout => sd_buff_dout,
+		sd_buff_din => sd_buff_din,
+		sd_buff_wr => sd_buff_wr,
+		sd_mounted => sd_change,
+
 		ps2_kbd_clk => ps2_clk,
-		ps2_kbd_data => ps2_dat
+		ps2_kbd_data => ps2_dat,
+		
+		ioctl_force_erase => '0',
+		ioctl_index => ioctl_index,
+		ioctl_wr => ioctl_wr,
+		ioctl_addr => ioctl_addr,
+		ioctl_dout => ioctl_data
 	);
-		  
+
 	-- rearrange joystick contacta for c64
 	joyA_int <= "0" & joyA(4) & joyA(0) & joyA(1) & joyA(2) & joyA(3);
 	joyB_int <= "0" & joyB(4) & joyB(0) & joyB(1) & joyB(2) & joyB(3);
@@ -435,21 +440,6 @@ begin
 	-- swap joysticks if requested
 	joyA_c64 <= joyB_int when status(3)='1' else joyA_int;
 	joyB_c64 <= joyA_int when status(3)='1' else joyB_int;
-
-	data_io_d : data_io
-	port map (
-		-- SPI interface
-		sck => SPI_SCK,
-		ss => SPI_SS2,
-		sdi => SPI_DI,
-			
-		-- ram interface
-		index => ioctl_index,
-		clk => clk32,
-		wr => ioctl_wr,
-		a => ioctl_addr,
-		d => ioctl_data
-	);
 
 	-- multiplex ram port between c64 core and data_io (io controller dma)
 	sdram_addr <= c64_addr when iec_cycle='0' else ioctl_ram_addr;
@@ -467,7 +457,7 @@ begin
 			if(iec_cycle='1' and iec_cycleD='0' and ioctl_ram_wr='1') then
 				ioctl_ram_wr <= '0';
 				ioctl_iec_cycle_used <= '1';
-				ioctl_ram_addr <= std_logic_vector(unsigned(ioctl_load_addr) + unsigned(ioctl_addr) - 2);
+				ioctl_ram_addr <= std_logic_vector(unsigned(ioctl_load_addr) + unsigned(ioctl_addr(15 downto 0)) - 2);
 				ioctl_ram_data <= ioctl_data;
 			else 
 				if(iec_cycle='0') then
@@ -676,16 +666,17 @@ begin
 		iec_data_o => c1541_iec_data_o,
 		iec_clk_o  => c1541_iec_clk_o,
 
-		io_lba => sd_lba,
-		io_rd  => sd_rd,
-		io_wr  => sd_wr,
-		io_ack => sd_ack,
-		io_conf => sd_conf,
-		io_sdhc => sd_sdhc,
-		io_din => sd_dout,
-		io_din_strobe => sd_dout_strobe,
-		io_dout => sd_din,
-		io_dout_strobe => sd_din_strobe,
+		sd_lba => sd_lba,
+		sd_rd  => sd_rd,
+		sd_wr  => sd_wr,
+		sd_ack => sd_ack,
+		sd_ack_conf => sd_ack_conf,
+		sd_conf => sd_conf,
+		sd_sdhc => sd_sdhc,
+		sd_buff_addr => sd_buff_addr,
+		sd_buff_dout => sd_buff_dout,
+		sd_buff_din  => sd_buff_din,
+		sd_buff_wr   => sd_buff_wr,
 
 		led => led_disk
 	);
