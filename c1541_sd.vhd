@@ -9,7 +9,6 @@
 -- c1541_logic    from : Mark McDougall
 -- spi_controller from : Michel Stempin, Stephen A. Edwards
 -- via6522        from : Arnim Laeuger, Mark McDougall, MikeJ
--- T65            from : Daniel Wallner, MikeJ, ehenciak
 --
 -- c1541_logic    modified for : slow down CPU (EOI ack missed by real c64)
 --                             : remove iec internal OR wired
@@ -18,8 +17,8 @@
 -- via6522        modified for : no modification
 --
 --
--- Input clk 32MHz and 18MHz (18MHz could be replaced with 32/2 if needed)
---     
+-- Input clk 32MHz
+--
 ---------------------------------------------------------------------------------
 
 library IEEE;
@@ -30,31 +29,36 @@ use IEEE.numeric_std.all;
 entity c1541_sd is
 port
 (
-	clk32       : in std_logic;
-	clk18       : in std_logic;
-	reset       : in std_logic;
+	clk32          : in std_logic;
+	reset          : in std_logic;
 
-	disk_change : in std_logic;
-	disk_num    : in std_logic_vector(9 downto 0);
+	disk_change    : in std_logic;
+	disk_num       : in std_logic_vector(9 downto 0);
 
-	iec_atn_i   : in std_logic;
-	iec_data_i  : in std_logic;
-	iec_clk_i   : in std_logic;
+	iec_atn_i      : in std_logic;
+	iec_data_i     : in std_logic;
+	iec_clk_i      : in std_logic;
 
-	iec_atn_o   : out std_logic;
-	iec_data_o  : out std_logic;
-	iec_clk_o   : out std_logic;
+	iec_atn_o      : out std_logic;
+	iec_data_o     : out std_logic;
+	iec_clk_o      : out std_logic;
 
-	sd_dat      : in std_logic;
-	sd_dat3     : buffer std_logic;
-	sd_cmd      : buffer std_logic;
-	sd_clk      : buffer std_logic;
+	io_lba         : out std_logic_vector(31 downto 0);
+	io_rd          : out std_logic;
+	io_wr          : out std_logic;
+	io_ack         : in  std_logic;
+	io_sdhc        : out std_logic;
+	io_conf        : out std_logic;
+	io_din         : in  std_logic_vector(7 downto 0);
+	io_din_strobe  : in  std_logic;
+	io_dout        : out std_logic_vector(7 downto 0);
+	io_dout_strobe : in  std_logic;
 
-	led         : out std_logic_vector(7 downto 0);
+	led            : out std_logic_vector(7 downto 0);
 
-	c1541rom_addr   : in std_logic_vector(13 downto 0);
-	c1541rom_data   : in std_logic_vector(7 downto 0);
-	c1541rom_wr     : in std_logic
+	c1541rom_addr  : in  std_logic_vector(13 downto 0);
+	c1541rom_data  : in  std_logic_vector(7 downto 0);
+	c1541rom_wr    : in  std_logic
 );
 end c1541_sd;
 
@@ -100,7 +104,7 @@ begin
     
 		c1541rom_addr => c1541rom_addr,
 		c1541rom_data => c1541rom_data,
-		c1541rom_wr => c1541rom_wr,
+		c1541rom_wr   => c1541rom_wr,
 
 		-- drive-side interface
 		ds              => "00",   -- device select
@@ -135,15 +139,19 @@ begin
 		track_ready => not sd_busy
 	);
 	
-
-
 	sd_spi : entity work.spi_controller
 	port map
 	(
-		CS_N => sd_dat3, --: out std_logic;     -- MMC chip select
-		MOSI => sd_cmd,  --: out std_logic;     -- Data to card (master out slave in)
-		MISO => sd_dat,  --: in  std_logic;     -- Data from card (master in slave out)
-		SCLK => sd_clk,  --: out std_logic;     -- Card clock
+		io_lba => io_lba,
+		io_rd  => io_rd,
+		io_wr  => io_wr,
+		io_ack => io_ack,
+		io_conf => io_conf,
+		io_sdhc => io_sdhc,
+		io_din => io_din,
+		io_din_strobe => io_din_strobe,
+		io_dout => io_dout,
+		io_dout_strobe => io_dout_strobe,
 
 		ram_write_addr => ram_write_addr, --: out unsigned(13 downto 0);
 		ram_di         => ram_di,         --: out unsigned(7 downto 0);
@@ -152,7 +160,7 @@ begin
       change  => disk_change,
 		track   => unsigned(track),
 
-		CLK_14M => clk18,
+		clk     => clk32,
 		reset   => reset, 
 		busy    => sd_busy
 	);
@@ -165,7 +173,7 @@ begin
 	)
 	port map
 	(
-		clk  => not clk18,
+		clk  => not clk32,
 		we   => ram_we,
 		addr => ram_addr,
 		d    => ram_di,

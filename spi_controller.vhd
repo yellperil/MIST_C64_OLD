@@ -23,10 +23,17 @@ generic (
 
 port (
 	-- Card Interface ---------------------------------------------------------
-	CS_N           : out std_logic;     -- MMC chip select
-	MOSI           : out std_logic;     -- Data to card (master out slave in)
-	MISO           : in  std_logic;     -- Data from card (master in slave out)
-	SCLK           : out std_logic;     -- Card clock
+	io_lba         : out std_logic_vector(31 downto 0);
+	io_rd          : out std_logic;
+	io_wr          : out std_logic;
+	io_ack         : in  std_logic;
+	io_sdhc        : out std_logic;
+	io_conf        : out std_logic;
+	io_din         : in  std_logic_vector(7 downto 0);
+	io_din_strobe  : in  std_logic;
+	io_dout        : out std_logic_vector(7 downto 0);
+	io_dout_strobe : in  std_logic;
+
 	-- Track buffer Interface -------------------------------------------------
 	ram_write_addr : out unsigned(12 downto 0);
 	ram_di         : out unsigned(7 downto 0);
@@ -35,7 +42,7 @@ port (
 	track          : in  unsigned(5 downto 0);  -- Track number (0-34)
 	busy           : out std_logic;
 	-- System Interface -------------------------------------------------------
-	CLK_14M        : in  std_logic;     -- System clock
+	clk            : in  std_logic;     -- System clock
 	reset          : in  std_logic;
 	dbg_state      : out std_logic_vector(7 downto 0) -- DTX
 );
@@ -43,6 +50,27 @@ port (
 end spi_controller;
 
 architecture rtl of spi_controller is
+
+	component sd_card port
+	(
+		io_lba    : out std_logic_vector(31 downto 0);
+		io_rd     : out std_logic;
+		io_wr     : out std_logic;
+		io_ack    : in  std_logic;
+		io_sdhc   : out std_logic;
+		io_conf   : out std_logic;
+		io_din    : in  std_logic_vector(7 downto 0);
+		io_din_strobe: in  std_logic;
+		io_dout   : out std_logic_vector(7 downto 0);
+		io_dout_strobe : in std_logic;
+		allow_sdhc: in  std_logic;
+
+		sd_cs     : in  std_logic;
+		sd_sck    : in  std_logic;
+		sd_sdi    : in  std_logic;
+		sd_sdo    : out std_logic
+	);
+	end component sd_card;
 
 	-----------------------------------------------------------------------------
 	-- States of the combined MMC/SD/SDHC reset, track and command FSM
@@ -79,6 +107,11 @@ architecture rtl of spi_controller is
 	--
 	-----------------------------------------------------------------------------
 
+	signal CS_N : std_logic;     -- MMC chip select
+	signal MOSI : std_logic;     -- Data to card (master out slave in)
+	signal MISO : std_logic;     -- Data from card (master in slave out)
+	signal SCLK : std_logic;     -- Card clock
+
 	signal slow_clk : boolean := true;
 	signal spi_clk : std_logic;
 	signal sclk_sig : std_logic;
@@ -105,6 +138,28 @@ architecture rtl of spi_controller is
 	signal reload : std_logic;
 begin
 
+	sd_card_d: sd_card
+	port map
+	(
+		io_lba => io_lba,
+		io_rd  => io_rd,
+		io_wr  => io_wr,
+		io_ack => io_ack,
+		io_conf => io_conf,
+		io_sdhc => io_sdhc,
+		io_din => io_din,
+		io_din_strobe => io_din_strobe,
+		io_dout => io_dout,
+		io_dout_strobe => io_dout_strobe,
+ 
+		allow_sdhc  => '1',
+
+		sd_cs  => CS_N,
+		sd_sck => SCLK,
+		sd_sdi => MOSI,
+		sd_sdo => MISO
+	);
+
 	-- set reload flag whenever "change" rises and clear it once the	
 	-- state machine starts reloading the track
 	process(change, state)
@@ -130,16 +185,16 @@ begin
 	--   is between 100kHz and 400kHz, as required for MMC compatibility.
 	--
 
-	var_clkgen : process (CLK_14M, slow_clk)
+	var_clkgen : process (clk, slow_clk)
 		variable var_clk : unsigned(4 downto 0) := (others => '0');
 	begin
 		if slow_clk then
 			spi_clk <= var_clk(4);
-			if rising_edge(CLK_14M) then
+			if rising_edge(clk) then
 				var_clk := var_clk + 1;
 			end if;
 		else
-			spi_clk <= CLK_14M;
+			spi_clk <= clk;
 		end if;
 	end process;
 

@@ -178,31 +178,6 @@ component user_io generic ( STRLEN : integer := 0 ); port
 end component user_io;
 
 ---------
--- sd card
----------
-
-component sd_card port
-(
-	io_lba    : out std_logic_vector(31 downto 0);
-	io_rd     : out std_logic;
-	io_wr     : out std_logic;
-	io_ack    : in  std_logic;
-	io_sdhc   : out std_logic;
-	io_conf   : out std_logic;
-	io_din    : in  std_logic_vector(7 downto 0);
-	io_din_strobe: in  std_logic;
-	io_dout   : out std_logic_vector(7 downto 0);
-	io_dout_strobe : in std_logic;
-	allow_sdhc: in  std_logic;
-
-	sd_cs     : in  std_logic;
-	sd_sck    : in  std_logic;
-	sd_sdi    : in  std_logic;
-	sd_sdo    : out std_logic
-);
-end component sd_card;
-
----------
 -- OSD
 ---------
 
@@ -355,11 +330,6 @@ end component sigma_delta_dac;
 
 	signal ps2_clk : std_logic;
 	signal ps2_dat : std_logic;
-	
-	signal sd_dat  : std_logic;
-	signal sd_dat3 : std_logic;
-	signal sd_cmd  : std_logic;
-	signal sd_clk  : std_logic;
 	
 	signal c64_iec_atn_i  : std_logic;
 	signal c64_iec_clk_o  : std_logic;
@@ -521,30 +491,6 @@ begin
 
 	c64rom_wr   <= ioctl_wr when (ioctl_index = "00000") and (ioctl_addr(14) = '0') else '0';
 	c1541rom_wr <= ioctl_wr when (ioctl_index = "00000") and (ioctl_addr(14) = '1') else '0';
-
-	sd_card_d: sd_card
-	port map
-	(
-		-- connection to io controller
-		io_lba => sd_lba,
-		io_rd  => sd_rd,
-		io_wr  => sd_wr,
-		io_ack => sd_ack,
-		io_conf => sd_conf,
-		io_sdhc => sd_sdhc,
-		io_din => sd_dout,
-		io_din_strobe => sd_dout_strobe,
-		io_dout => sd_din,
-		io_dout_strobe => sd_din_strobe,
- 
-		allow_sdhc  => '1',   -- esxdos supports SDHC
-
-		-- connection to host
-		sd_cs  => sd_dat3,
-		sd_sck => sd_clk,
-		sd_sdi => sd_cmd,
-		sd_sdo => sd_dat
-	);
 
 	process(clk32)
 	begin
@@ -713,7 +659,6 @@ begin
 	port map
 	(
 		clk32 => clk32,
-		clk18 => clk32, -- MiST uses virtual SPI SD, so any clock can be used.
 		reset => c1541_reset,
 
 		c1541rom_addr => ioctl_addr(13 downto 0),
@@ -731,10 +676,16 @@ begin
 		iec_data_o => c1541_iec_data_o,
 		iec_clk_o  => c1541_iec_clk_o,
 
-		sd_dat  => sd_dat,
-		sd_dat3 => sd_dat3,
-		sd_cmd  => sd_cmd,
-		sd_clk  => sd_clk,
+		io_lba => sd_lba,
+		io_rd  => sd_rd,
+		io_wr  => sd_wr,
+		io_ack => sd_ack,
+		io_conf => sd_conf,
+		io_sdhc => sd_sdhc,
+		io_din => sd_dout,
+		io_din_strobe => sd_dout_strobe,
+		io_dout => sd_din,
+		io_dout_strobe => sd_din_strobe,
 
 		led => led_disk
 	);
