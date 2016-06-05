@@ -186,24 +186,6 @@ set_global_assignment -name OUTPUT_IO_TIMING_FAR_END_VMEAS "HALF SIGNAL SWING" -
 
 # Pin & Location Assignments
 # ==========================
-
-# Fitter Assignments
-# ==================
-
-# start DESIGN_PARTITION(Top)
-# ---------------------------
-
-# Incremental Compilation Assignments
-# ===================================
-
-# end DESIGN_PARTITION(Top)
-# -------------------------
-
-# end ENTITY(C64_MiST)
-# ----------------------
-set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
-set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top
-set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
 set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to SDRAM_DQ[0]
 set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to SDRAM_DQ[1]
 set_instance_assignment -name FAST_OUTPUT_REGISTER ON -to SDRAM_DQ[2]
@@ -257,6 +239,9 @@ set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_DQ[12]
 set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_DQ[13]
 set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_DQ[14]
 set_instance_assignment -name FAST_OUTPUT_ENABLE_REGISTER ON -to SDRAM_DQ[15]
+
+# Fitter Assignments
+# ==================
 set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to SDRAM_A[0]
 set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to SDRAM_A[1]
 set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to SDRAM_A[2]
@@ -321,6 +306,21 @@ set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to AUDIO_L
 set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to AUDIO_R
 set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to SPI_DO
 set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to CONF_DATA0
+
+# start DESIGN_PARTITION(Top)
+# ---------------------------
+
+# Incremental Compilation Assignments
+# ===================================
+set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
+set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top
+set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
+
+# end DESIGN_PARTITION(Top)
+# -------------------------
+
+# end ENTITY(C64_MiST)
+# ----------------------
 set_global_assignment -name VHDL_FILE ../sid/wave_map.vhd
 set_global_assignment -name VHDL_FILE ../sid/sid_top.vhd
 set_global_assignment -name VHDL_FILE ../sid/sid_regs.vhd
@@ -341,23 +341,19 @@ set_global_assignment -name VHDL_FILE pll.vhd
 set_global_assignment -name VHDL_FILE c1541_logic.vhd
 set_global_assignment -name VHDL_FILE c1541_sd.vhd
 set_global_assignment -name VHDL_FILE gcr_floppy.vhd
-set_global_assignment -name VERILOG_FILE sd_controller.v
-set_global_assignment -name VERILOG_FILE sd_card.v
-set_global_assignment -name VERILOG_FILE sdbuf.v
+set_global_assignment -name SYSTEMVERILOG_FILE sd_card.sv
+set_global_assignment -name VERILOG_FILE trkbuf.v
 set_global_assignment -name VHDL_FILE rom_C64.vhd
 set_global_assignment -name VHDL_FILE rom_C1541.vhd
 set_global_assignment -name VHDL_FILE rom_c64_chargen.vhd
 set_global_assignment -name VHDL_FILE fpga64_buslogic_roms_mmu.vhd
 set_global_assignment -name VERILOG_FILE sdram.v
-set_global_assignment -name SYSTEMVERILOG_FILE sram.sv
-set_global_assignment -name VHDL_FILE gen_rwram.vhd
 set_global_assignment -name VHDL_FILE gen_ram.vhd
 set_global_assignment -name VERILOG_FILE mist_io.v
 set_global_assignment -name VERILOG_FILE scandoubler.v
 set_global_assignment -name VERILOG_FILE osd.v
 set_global_assignment -name VHDL_FILE fpga64_keyboard_matrix_mark_mcdougall.vhd
 set_global_assignment -name VHDL_FILE m6522.vhd
-set_global_assignment -name VHDL_FILE spi_controller.vhd
 set_global_assignment -name VHDL_FILE video_vicII_656x_a.vhd
 set_global_assignment -name VHDL_FILE composite_sync.vhd
 set_global_assignment -name VHDL_FILE video_vicII_656x_e.vhd

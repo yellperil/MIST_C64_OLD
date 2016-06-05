@@ -56,7 +56,7 @@ port
 	sd_buff_din    : out std_logic_vector(7 downto 0);
 	sd_buff_wr     : in  std_logic;
 
-	led            : out std_logic_vector(7 downto 0);
+	led            : out std_logic;
 
 	c1541rom_addr  : in  std_logic_vector(13 downto 0);
 	c1541rom_data  : in  std_logic_vector(7 downto 0);
@@ -66,16 +66,40 @@ end c1541_sd;
 
 architecture struct of c1541_sd is
 
-	signal ram_write_addr : unsigned(12 downto 0);
-	signal ram_addr       : unsigned(12 downto 0);
-	signal ram_di         : unsigned( 7 downto 0);
-	signal ram_do         : unsigned( 7 downto 0);
-	signal ram_we         : std_logic;
+	component sd_card port
+	(
+		sd_lba         : out std_logic_vector(31 downto 0);
+		sd_rd          : out std_logic;
+		sd_wr          : out std_logic;
+		sd_ack         : in  std_logic;
+		sd_ack_conf    : in  std_logic;
+		sd_sdhc        : out std_logic;
+		sd_conf        : out std_logic;
+
+		sd_buff_addr   : in  std_logic_vector(8 downto 0);
+		sd_buff_dout   : in  std_logic_vector(7 downto 0);
+		sd_buff_din    : out std_logic_vector(7 downto 0);
+		sd_buff_wr     : in  std_logic;
+
+		buff_addr      : in  std_logic_vector(12 downto 0);
+		buff_dout      : out std_logic_vector(7 downto 0);
+		buff_din       : in  std_logic_vector(7 downto 0);
+		buff_we        : in  std_logic;
+
+		change         : in  std_logic;             -- Force reload as disk may have changed
+		track          : in  unsigned(5 downto 0);  -- Track number (0-34)
+		busy           : out std_logic;
+
+		clk            : in  std_logic;     -- System clock
+		reset          : in  std_logic
+	);
+	end component sd_card;
+
+	signal track_data     : std_logic_vector(7 downto 0);
 	signal do             : std_logic_vector(7 downto 0); -- disk read data
 	signal mode           : std_logic;                    -- read/write
 	signal stp            : std_logic_vector(1 downto 0); -- stepper motor control
 	signal mtr            : std_logic ;                   -- stepper motor on/off
-	signal freq           : std_logic_vector(1 downto 0); -- motor (gcr_bit) frequency
 	signal sync_n         : std_logic;                    -- reading SYNC bytes
 	signal byte_n         : std_logic;                    -- byte ready
 	signal act            : std_logic;                    -- activity LED
@@ -115,7 +139,7 @@ begin
 		mode            => mode,   -- read/write
 		stp             => stp,    -- stepper motor control
 		mtr             => mtr,    -- motor on/off
-		freq            => freq,   -- motor frequency
+		freq            => open,   -- motor frequency
 		sync_n          => sync_n, -- reading SYNC bytes
 		byte_n          => byte_n, -- byte ready
 		wps_n           => '0',    -- write-protect sense
@@ -137,11 +161,11 @@ begin
 		
 		track       => track,
 		track_adr   => track_read_adr,
-		track_data  => std_logic_vector(ram_do), 	
+		track_data  => track_data,
 		track_ready => not sd_busy
 	);
-	
-	sd_spi : entity work.spi_controller
+
+	sd : sd_card
 	port map
 	(
 		sd_lba  => sd_lba,
@@ -157,9 +181,10 @@ begin
 		sd_buff_din  => sd_buff_din,
 		sd_buff_wr   => sd_buff_wr,
 
-		ram_write_addr => ram_write_addr, --: out unsigned(13 downto 0);
-		ram_di         => ram_di,         --: out unsigned(7 downto 0);
-		ram_we         => ram_we,         
+		buff_addr => track_read_adr,
+		buff_dout => track_data,
+		buff_din  => (others => '0'),
+		buff_we   => '0',
 
       change  => disk_change,
 		track   => unsigned(track),
@@ -169,28 +194,5 @@ begin
 		busy    => sd_busy
 	);
 
-	track_buffer : entity work.gen_ram
-	generic map
-	(
-		dWidth => 8,
-		aWidth => 13
-	)
-	port map
-	(
-		clk  => not clk32,
-		we   => ram_we,
-		addr => ram_addr,
-		d    => ram_di,
-		q    => ram_do
-	);
-
-	with sd_busy select 
-		ram_addr <= ram_write_addr when '1', unsigned(track_read_adr) when others; 
-
-	led(0)          <= mode;     -- read/write
-	led(2 downto 1) <= stp;      -- stepper motor control
-	led(3)          <= mtr;      -- stepper motor on/off
-	led(5 downto 4) <= freq;     -- motor frequency
-	led(6)          <= act;      -- activity LED
-	led(7)          <= sd_busy;  -- SD read	
+	led <= act or sd_busy;
 end struct;

@@ -126,7 +126,7 @@ end component;
 ---------
 
 -- config string used by the io controller to fill the OSD
-constant CONF_STR : string := "C64;PRG;S1,D64;O2,Video standard,PAL,NTSC;O3,Joysticks,normal,swapped;O4,Scanlines,Off,On;O6,Audio filter,On,Off;T5,Reset";
+constant CONF_STR : string := "C64;PRG;S1,D64;V0,v0.27.20;O2,Video standard,PAL,NTSC;O3,Joysticks,normal,swapped;O4,Scanlines,Off,On;O6,Audio filter,On,Off;T5,Reset";
 
 -- convert string to std_logic_vector to be given to user_io
 function to_slv(s: string) return std_logic_vector is 
@@ -379,12 +379,12 @@ end component sigma_delta_dac;
 	signal reset_counter    : integer;
 	signal reset_n          : std_logic;
 	
-	signal led_disk         : std_logic_vector(7 downto 0);
+	signal led_disk         : std_logic;
 
 begin
 
 	-- 1541 activity led
-	LED <= not led_disk(6);
+	LED <= not led_disk;
 
 	iec_cycle <= '1' when ces = "1011" else '0';
 		
@@ -498,7 +498,7 @@ begin
 	ntsc_init_mode <= status(2);
 
    -- second  to generate 64mhz clock and phase shifted ram clock	
-	clk_c64 : entity work.pll
+	pll : entity work.pll
 	port map(
 		inclk0 => CLOCK_27,
 		c0 => clk_ram,
