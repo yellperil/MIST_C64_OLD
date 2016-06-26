@@ -464,7 +464,7 @@ wire [24:0] next_erase = (ioctl_addr + 1'd1) & erase_mask;
 always@(posedge clk_sys) begin
 	reg        rclkD, rclkD2;
 	reg        old_force = 0;
-	reg  [5:0] erase_clk_div;
+	reg  [6:0] erase_clk_div;
 	reg [24:0] end_addr;
 
 	rclkD    <= rclk;
@@ -484,9 +484,9 @@ always@(posedge clk_sys) begin
 
 		old_force <= ioctl_force_erase;
 		if(ioctl_force_erase & ~old_force) begin
-			ioctl_addr    <= 'hFFFF;
-			erase_mask    <= 'hFFFF;
-			end_addr      <= 'hFFFF;
+			ioctl_addr    <= 'h1FFFF;
+			erase_mask    <= 'h1FFFF;
+			end_addr      <= 'h10002;
 			erase_clk_div <= 1;
 			ioctl_erasing <= 1;
 		end else if(ioctl_erasing) begin

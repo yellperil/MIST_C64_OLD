@@ -1250,7 +1250,57 @@ writeRegisters: process(clk)
 		
 			--
 			-- write to registers
-			if (myWr = '1') then
+			if(reset = '1') then
+				MX(0) <= (others => '0');
+				MX(1) <= (others => '0');
+				MX(2) <= (others => '0');
+				MX(3) <= (others => '0');
+				MX(4) <= (others => '0');
+				MX(5) <= (others => '0');
+				MX(6) <= (others => '0');
+				MX(7) <= (others => '0');
+				rasterCmp <= (others => '0');
+				ECM <= '0';
+				BMM <= '0';
+				DEN <= '0';
+				RSEL <= '0';
+				yscroll <= (others => '0');
+				ME <= (others => '0');
+				RES <= '0';
+				MCM <= '0';
+				CSEL <= '0';
+				xscroll <= (others => '0');
+				MYE <= (others => '0');
+				VM <= (others => '0');
+				CB <= (others => '0');
+				resetLightPenIrq <= '0';
+				resetIMMC <= '0';
+				resetIMBC <= '0';
+				resetRasterIrq <= '0';
+				ELP <= '0';
+				EMMC <= '0';
+				EMBC <= '0';
+				ERST <= '0';
+				MPRIO <= (others => '0');
+				MCDelay <= (others => '0');
+				MXE <= (others => '0');
+				EC <= (others => '0');
+				B0C <= (others => '0');
+				B1C <= (others => '0');
+				B2C <=(others => '0');
+				B3C <= (others => '0');
+				MM0 <= (others => '0');
+				MM1 <= (others => '0');
+				spriteColors(0) <= (others => '0');
+				spriteColors(1) <= (others => '0');
+				spriteColors(2) <= (others => '0');
+				spriteColors(3) <= (others => '0');
+				spriteColors(4) <= (others => '0');
+				spriteColors(5) <= (others => '0');
+				spriteColors(6) <= (others => '0');
+				spriteColors(7) <= (others => '0');
+				
+			elsif (myWr = '1') then
 				case aRegisters is
 				when "000000" => MX(0)(7 downto 0) <= diRegisters;
 				when "000001" => MY(0) <= diRegisters;

@@ -42,6 +42,7 @@ entity video_vicii_656x is
 		mode6567R8 : in std_logic; -- new NTSC 65 cycles and 263 line
 		mode6572 : in std_logic; -- PAL-N 65 cycles and 312 lines
 
+		reset : in std_logic;
 		cs : in std_logic;
 		we : in std_logic;
 		rd : in std_logic;

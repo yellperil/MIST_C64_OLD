@@ -280,6 +280,9 @@ end component sigma_delta_dac;
 	signal ioctl_load_addr: std_logic_vector(15 downto 0);
 	signal ioctl_ram_wr: std_logic;
 	signal ioctl_iec_cycle_used: std_logic;
+	signal ioctl_force_erase: std_logic;
+	signal ioctl_erasing: std_logic;
+	signal ioctl_download: std_logic;
 	signal c64_addr: std_logic_vector(15 downto 0);
 	signal c64_data_in: std_logic_vector(7 downto 0);
 	signal c64_data_out: std_logic_vector(7 downto 0);
@@ -426,7 +429,9 @@ begin
 		ps2_kbd_clk => ps2_clk,
 		ps2_kbd_data => ps2_dat,
 		
-		ioctl_force_erase => '0',
+		ioctl_download => ioctl_download,
+		ioctl_force_erase => ioctl_force_erase,
+		ioctl_erasing => ioctl_erasing,
 		ioctl_index => ioctl_index,
 		ioctl_wr => ioctl_wr,
 		ioctl_addr => ioctl_addr,
@@ -465,7 +470,7 @@ begin
 				end if;
 			end if;
 
-			if ioctl_wr='1' and (ioctl_index /=X"0") then
+			if ioctl_wr='1' and ((ioctl_index /=X"0") or (ioctl_erasing = '1')) then
 				if(ioctl_addr = 0) then
 					ioctl_load_addr(7 downto 0) <= ioctl_data;
 				elsif(ioctl_addr = 1) then
@@ -479,8 +484,8 @@ begin
 		end if;
 	end process;
 
-	c64rom_wr   <= ioctl_wr when (ioctl_index = "00000") and (ioctl_addr(14) = '0') else '0';
-	c1541rom_wr <= ioctl_wr when (ioctl_index = "00000") and (ioctl_addr(14) = '1') else '0';
+	c64rom_wr   <= ioctl_wr when (ioctl_index = 0) and (ioctl_addr(14) = '0') and (ioctl_download = '1') else '0';
+	c1541rom_wr <= ioctl_wr when (ioctl_index = 0) and (ioctl_addr(14) = '1') and (ioctl_download = '1') else '0';
 
 	process(clk32)
 	begin
@@ -510,18 +515,24 @@ begin
 	process(clk32)
 	begin
 		if rising_edge(clk32) then
-			reset_n <= '0';
 			-- Reset by:
 			-- Button at device, IO controller reboot, OSD or FPGA startup
-			if status(0)='1' then
+			if status(0)='1' or pll_locked = '0' then
 				reset_counter <= 16000000;
-			elsif buttons(1)='1' or status(5)='1' or pll_locked = '0' or reset_key = '1' then
+				reset_n <= '0';
+			elsif buttons(1)='1' or status(5)='1' or reset_key = '1' then
 				reset_counter <= 255;
+				reset_n <= '0';
+			elsif ioctl_erasing ='1' then
+				ioctl_force_erase <= '0';
 			else
-			  if reset_counter = 0 then
+				if reset_counter = 0 then
 					reset_n <= '1';
 				else
 					reset_counter <= reset_counter - 1;
+					if reset_counter = 100 then
+						ioctl_force_erase <='1';
+					end if;
 				end if;
 			end if;
 		end if;

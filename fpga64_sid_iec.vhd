@@ -451,6 +451,7 @@ begin
 		)			
 		port map (
 			clk => clk32,
+			reset => reset,
 			enaPixel => enablePixel,
 			enaData => enableVic,
 			phi => phi0_cpu,
