@@ -126,7 +126,7 @@ end component;
 ---------
 
 -- config string used by the io controller to fill the OSD
-constant CONF_STR : string := "C64;PRG;S1,D64;V0,v0.27.20;O2,Video standard,PAL,NTSC;O3,Joysticks,normal,swapped;O4,Scanlines,Off,On;O6,Audio filter,On,Off;T5,Reset";
+constant CONF_STR : string := "C64;PRG;S1,D64;O2,Video standard,PAL,NTSC;O3,Joysticks,normal,swapped;O4,Scanlines,Off,On;O6,Audio filter,On,Off;T5,Reset;V0,v0.27.21";
 
 -- convert string to std_logic_vector to be given to user_io
 function to_slv(s: string) return std_logic_vector is 
@@ -656,7 +656,6 @@ begin
 		c1541rom_wr => c1541rom_wr,
 
 		disk_change => sd_change, 
-		disk_num => (others => '0'),   -- not seletable by f8 or similar
 
 		iec_atn_i  => c1541_iec_atn_i,
 		iec_data_i => c1541_iec_data_i,

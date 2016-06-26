@@ -33,7 +33,6 @@ port
 	reset          : in std_logic;
 
 	disk_change    : in std_logic;
-	disk_num       : in std_logic_vector(9 downto 0);
 
 	iec_atn_i      : in std_logic;
 	iec_data_i     : in std_logic;
@@ -81,13 +80,14 @@ architecture struct of c1541_sd is
 		sd_buff_din    : out std_logic_vector(7 downto 0);
 		sd_buff_wr     : in  std_logic;
 
-		buff_addr      : in  std_logic_vector(12 downto 0);
+		buff_addr      : in  std_logic_vector(7 downto 0);
 		buff_dout      : out std_logic_vector(7 downto 0);
 		buff_din       : in  std_logic_vector(7 downto 0);
 		buff_we        : in  std_logic;
 
-		change         : in  std_logic;             -- Force reload as disk may have changed
-		track          : in  unsigned(5 downto 0);  -- Track number (0-34)
+		change         : in  std_logic;                     -- Force reload as disk may have changed
+		track          : in  std_logic_vector(5 downto 0);  -- Track number (0-34)
+		sector         : in  std_logic_vector(4 downto 0);  -- Sector number (0-20)
 		busy           : out std_logic;
 
 		clk            : in  std_logic;     -- System clock
@@ -95,17 +95,18 @@ architecture struct of c1541_sd is
 	);
 	end component sd_card;
 
-	signal track_data     : std_logic_vector(7 downto 0);
-	signal do             : std_logic_vector(7 downto 0); -- disk read data
-	signal mode           : std_logic;                    -- read/write
-	signal stp            : std_logic_vector(1 downto 0); -- stepper motor control
-	signal mtr            : std_logic ;                   -- stepper motor on/off
-	signal sync_n         : std_logic;                    -- reading SYNC bytes
-	signal byte_n         : std_logic;                    -- byte ready
-	signal act            : std_logic;                    -- activity LED
-	signal sd_busy        : std_logic;
-	signal track_read_adr : std_logic_vector(12 downto 0);
-	signal track          : std_logic_vector(5 downto 0);
+	signal buff_dout  : std_logic_vector(7 downto 0);
+	signal do         : std_logic_vector(7 downto 0); -- disk read data
+	signal mode       : std_logic;                    -- read/write
+	signal stp        : std_logic_vector(1 downto 0); -- stepper motor control
+	signal mtr        : std_logic ;                   -- stepper motor on/off
+	signal sync_n     : std_logic;                    -- reading SYNC bytes
+	signal byte_n     : std_logic;                    -- byte ready
+	signal act        : std_logic;                    -- activity LED
+	signal sd_busy    : std_logic;
+	signal track      : std_logic_vector(5 downto 0);
+	signal sector     : std_logic_vector(4 downto 0);
+	signal byte_addr  : std_logic_vector(7 downto 0);
 
 begin
 	
@@ -133,18 +134,18 @@ begin
 		c1541rom_wr   => c1541rom_wr,
 
 		-- drive-side interface
-		ds              => "00",   -- device select
-		di              => do,     -- disk write data
-		do              => open,   -- disk read data
-		mode            => mode,   -- read/write
-		stp             => stp,    -- stepper motor control
-		mtr             => mtr,    -- motor on/off
-		freq            => open,   -- motor frequency
-		sync_n          => sync_n, -- reading SYNC bytes
-		byte_n          => byte_n, -- byte ready
-		wps_n           => '0',    -- write-protect sense
-		tr00_sense_n    => '1',    -- track 0 sense (unused?)
-		act             => act     -- activity LED
+		ds            => "00",   -- device select
+		di            => do,     -- disk read data
+		do            => open,   -- disk write data
+		mode          => mode,   -- read/write
+		stp           => stp,    -- stepper motor control
+		mtr           => mtr,    -- motor on/off
+		freq          => open,   -- motor frequency
+		sync_n        => sync_n, -- reading SYNC bytes
+		byte_n        => byte_n, -- byte ready
+		wps_n         => '0',    -- write-protect sense
+		tr00_sense_n  => '1',    -- track 0 sense (unused?)
+		act           => act     -- activity LED
 	);
 
 	floppy : entity work.gcr_floppy
@@ -160,8 +161,9 @@ begin
 		byte_n => byte_n, -- byte ready
 		
 		track       => track,
-		track_adr   => track_read_adr,
-		track_data  => track_data,
+		sector      => sector,
+		byte_addr   => byte_addr,
+		track_din   => buff_dout,
 		track_ready => not sd_busy
 	);
 
@@ -181,13 +183,14 @@ begin
 		sd_buff_din  => sd_buff_din,
 		sd_buff_wr   => sd_buff_wr,
 
-		buff_addr => track_read_adr,
-		buff_dout => track_data,
+		buff_addr => byte_addr,
+		buff_dout => buff_dout,
 		buff_din  => (others => '0'),
 		buff_we   => '0',
 
-      change  => disk_change,
-		track   => unsigned(track),
+		change  => disk_change,
+		track   => track,
+		sector  => sector,
 
 		clk     => clk32,
 		reset   => reset, 

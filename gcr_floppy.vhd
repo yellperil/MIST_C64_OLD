@@ -15,18 +15,19 @@ use IEEE.numeric_std.all;
 
 entity gcr_floppy is
 port(
-	clk32  : in  std_logic;
-	reset  : in  std_logic;
+	clk32       : in  std_logic;
+	reset       : in  std_logic;
 
-	do     : out std_logic_vector(7 downto 0);   -- disk read data
-	stp    : in  std_logic_vector(1 downto 0);   -- stepper motor control
-	mtr    : in  std_logic;                      -- stepper motor on/off
-	sync_n : out std_logic;                      -- reading SYNC bytes
-	byte_n : out std_logic;                      -- byte ready
+	do          : out std_logic_vector(7 downto 0);   -- disk read data
+	stp         : in  std_logic_vector(1 downto 0);   -- stepper motor control
+	mtr         : in  std_logic;                      -- stepper motor on/off
+	sync_n      : out std_logic;                      -- reading SYNC bytes
+	byte_n      : out std_logic;                      -- byte ready
 
 	track       : out std_logic_vector(5 downto 0);
-	track_adr   : out std_logic_vector(12 downto 0);
-	track_data  : in  std_logic_vector(7 downto 0);
+	sector      : out std_logic_vector(4 downto 0);
+	byte_addr   : out std_logic_vector(7 downto 0);
+	track_din   : in  std_logic_vector(7 downto 0);
 	track_ready : in  std_logic
 );
 end gcr_floppy;
@@ -36,6 +37,7 @@ architecture struct of gcr_floppy is
 	signal bit_clk_en  : std_logic;
 	signal sync_cnt    : std_logic_vector(5 downto 0) := (others => '0');
 	signal byte_cnt    : std_logic_vector(8 downto 0) := (others => '0');
+	signal byte_dbl    : std_logic_vector(7 downto 0) := (others => '0');
 	signal nibble      : std_logic := '0';
 	signal gcr_bit_cnt : std_logic_vector(3 downto 0) := (others => '0');
 	signal bit_cnt     : std_logic_vector(2 downto 0) := (others => '0');
@@ -43,7 +45,7 @@ architecture struct of gcr_floppy is
 	signal sync_in_n   : std_logic;
 	signal byte_in_n   : std_logic;
 
-	signal sector      : std_logic_vector(4 downto 0) := (others => '0');
+	signal sector_dbl  : std_logic_vector(4 downto 0) := (others => '0');
 	signal state       : std_logic                    := '0';
 
 	signal data_header : std_logic_vector(7 downto 0);
@@ -67,6 +69,7 @@ architecture struct of gcr_floppy is
 begin
 
 	track <= track_dbl(6 downto 1);
+	sector <= sector_dbl;
 
 	process(clk32)
 	begin
@@ -103,8 +106,8 @@ begin
 	with byte_cnt select
 		data_header <= 
 			X"08"                       when "000000000",
-			"00"&track_dbl(6 downto 1) xor "000"&sector when "000000001",
-			"000"&sector                when "000000010",
+			"00"&track_dbl(6 downto 1) xor "000"&sector_dbl when "000000001",
+			"000"&sector_dbl            when "000000010",
 			"00"&track_dbl(6 downto 1)  when "000000011",
 			X"20"                       when "000000100",
 			X"20"                       when "000000101",
@@ -112,25 +115,25 @@ begin
 
 	with byte_cnt select
 		data_body <=
-			X"07"          when "000000000",
-			data_cks       when "100000001",
-			X"00"          when "100000010",
-			X"00"          when "100000011",
-			X"0F"          when "100000100",
-			X"0F"          when "100000101",
-			X"0F"          when "100000110",
-			X"0F"          when "100000111",
-			X"0F"          when "100001000",
-			X"0F"          when "100001001",
-			X"0F"          when "100001010",
-			X"0F"          when "100001011",
-			X"0F"          when "100001100",
-			X"0F"          when "100001101",
-			X"0F"          when "100001110",
-			X"0F"          when "100001111",
-			X"0F"          when "100010000",
-			X"0F"          when "100010001",
-			track_data     when others;
+			X"07"     when "000000000",
+			data_cks  when "100000001",
+			X"00"     when "100000010",
+			X"00"     when "100000011",
+			X"0F"     when "100000100",
+			X"0F"     when "100000101",
+			X"0F"     when "100000110",
+			X"0F"     when "100000111",
+			X"0F"     when "100001000",
+			X"0F"     when "100001001",
+			X"0F"     when "100001010",
+			X"0F"     when "100001011",
+			X"0F"     when "100001100",
+			X"0F"     when "100001101",
+			X"0F"     when "100001110",
+			X"0F"     when "100001111",
+			X"0F"     when "100010000",
+			X"0F"     when "100010001",
+			track_din when others;
 	
 	with state select
 		data <= data_header when '0',
@@ -180,19 +183,21 @@ begin
 				do          <= (others => '0');
 				gcr_byte    <= (others => '0');
 				data_cks    <= (others => '0');
-				if sync_cnt = X"31" then 
-					sync_cnt <= (others => '0');
-					sync_in_n <= '1';
-				else
-					sync_cnt <= std_logic_vector(unsigned(sync_cnt +1));
+				if track_ready = '1' then
+					if sync_cnt = X"31" then 
+						sync_cnt <= (others => '0');
+						sync_in_n <= '1';
+					else
+						sync_cnt <= std_logic_vector(unsigned(sync_cnt +1));
+					end if;
 				end if;
 			else
 				gcr_bit_cnt <= std_logic_vector(unsigned(gcr_bit_cnt)+1);
 				if gcr_bit_cnt = X"4" then
 					gcr_bit_cnt <= (others => '0');
 					if nibble = '1' then 
-						nibble    <= '0';
-						track_adr <= sector & byte_cnt(7 downto 0);
+						nibble   <= '0';
+						byte_addr <= byte_cnt(7 downto 0);
 						if byte_cnt = "000000000" then
 							data_cks <= (others => '0');
 						else
@@ -209,15 +214,18 @@ begin
 					byte_in_n <= '0';
 				end if;
 				if state = '0' then
-					if byte_cnt = "000010000" then sync_in_n <= '0'; state<= '1'; end if;
+					if byte_cnt = "000010000" then
+						sync_in_n <= '0';
+						state<= '1';
+					end if;
 				else
 					if byte_cnt = "100010001" then 
 						sync_in_n <= '0';
 						state <= '0';
-						if sector = sector_max then 
-							sector <= (others=>'0');
+						if sector_dbl = sector_max then 
+							sector_dbl <= (others=>'0');
 						else
-							sector <= std_logic_vector(unsigned(sector)+1);
+							sector_dbl <= std_logic_vector(unsigned(sector_dbl)+1);
 						end if;
 					end if;
 				end if;

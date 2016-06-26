@@ -29,8 +29,8 @@ port
 
 	-- drive-side interface
 	ds              : in std_logic_vector(1 downto 0);    -- device select
-	di              : in std_logic_vector(7 downto 0);    -- disk write data
-	do              : out std_logic_vector(7 downto 0);   -- disk read data
+	di              : in std_logic_vector(7 downto 0);    -- disk read data
+	do              : out std_logic_vector(7 downto 0);   -- disk write data
 	mode            : out std_logic;                      -- read/write
 	stp             : out std_logic_vector(1 downto 0);   -- stepper motor control
 	mtr             : out std_logic;                      -- stepper motor on/off

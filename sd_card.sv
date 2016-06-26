@@ -27,24 +27,24 @@ module sd_card
 	output [31:0] sd_lba,
 	output reg    sd_rd,
 	output reg    sd_wr,
-	input			  sd_ack,
-	input			  sd_ack_conf,
+	input         sd_ack,
+	input         sd_ack_conf,
 	output        sd_conf,
-	output		  sd_sdhc,
+	output        sd_sdhc,
 
-	input	  [8:0] sd_buff_addr,
-	input	  [7:0] sd_buff_dout,
+	input   [8:0] sd_buff_addr,
+	input   [7:0] sd_buff_dout,
 	output  [7:0] sd_buff_din,
 	input         sd_buff_wr,
 
-	input  [12:0] buff_addr,
+	input         change,
+	input   [5:0] track,
+	input   [4:0] sector,
+	input   [7:0] buff_addr,
 	output  [7:0] buff_dout,
 	input   [7:0] buff_din,
 	input         buff_we,
-	output reg    busy,
-
-	input         change,
-	input   [5:0] track
+	output reg    busy
 );
 
 assign sd_lba = lba;
@@ -60,7 +60,7 @@ trkbuf buffer
 	.wren_a(sd_ack & sd_buff_wr),
 	.q_a(sd_buff_din),
 
-	.address_b(buff_addr),
+	.address_b({sector, buff_addr}),
 	.data_b(buff_din),
 	.wren_b(buff_we),
 	.q_b(buff_dout)
