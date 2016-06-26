@@ -518,11 +518,12 @@ begin
 			-- Reset by:
 			-- Button at device, IO controller reboot, OSD or FPGA startup
 			if status(0)='1' or pll_locked = '0' then
-				reset_counter <= 16000000;
+				reset_counter <= 1000000;
 				reset_n <= '0';
 			elsif buttons(1)='1' or status(5)='1' or reset_key = '1' then
 				reset_counter <= 255;
 				reset_n <= '0';
+			elsif ioctl_download ='1' then
 			elsif ioctl_erasing ='1' then
 				ioctl_force_erase <= '0';
 			else
@@ -636,13 +637,11 @@ begin
 	c1541_iec_data_i <= c64_iec_data_i;
 	c1541_iec_clk_i  <= c64_iec_clk_i;
 
-	-- 1541 reset is delayed by 2 seconds to give mist firmware enough
-	-- time to prepare the sd card
 	process(clk32, reset_n)
 		variable reset_cnt : integer range 0 to 32000000;
 	begin
 		if reset_n = '0' then
-			reset_cnt := 32000000;
+			reset_cnt := 100000;
 		elsif rising_edge(clk32) then
 			if reset_cnt /= 0 then
 				reset_cnt := reset_cnt - 1;
