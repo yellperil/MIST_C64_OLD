@@ -158,6 +158,7 @@ component mist_io generic(STRLEN : integer := 0 ); port
 	switches          : out std_logic_vector(1 downto 0);
 	buttons           : out std_logic_vector(1 downto 0);
 	scandoubler_disable : out std_logic;
+	ypbpr             : out std_logic;
 
 	joystick_0        : out std_logic_vector(7 downto 0);
 	joystick_1        : out std_logic_vector(7 downto 0);
@@ -193,6 +194,35 @@ component mist_io generic(STRLEN : integer := 0 ); port
 	ioctl_dout        : out std_logic_vector(7 downto 0)
 );
 end component mist_io;
+
+
+component video_mixer port
+(
+	scandoubler_disable : in  std_logic;
+	ypbpr               : in  std_logic;
+	ypbpr_full          : in  std_logic;
+
+	r_i     : in std_logic_vector(7 downto 0);
+	g_i     : in std_logic_vector(7 downto 0);
+	b_i     : in std_logic_vector(7 downto 0);
+
+	hsync_i : in  std_logic;
+	vsync_i : in  std_logic;
+
+	r_p     : in std_logic_vector(7 downto 0);
+	g_p     : in std_logic_vector(7 downto 0);
+	b_p     : in std_logic_vector(7 downto 0);
+
+	hsync_p : in  std_logic;
+	vsync_p : in  std_logic;
+
+	VGA_R   : out std_logic_vector(5 downto 0);
+	VGA_G   : out std_logic_vector(5 downto 0);
+	VGA_B   : out std_logic_vector(5 downto 0);
+	VGA_VS  : out std_logic;
+	VGA_HS  : out std_logic
+);
+end component video_mixer;
 
 ---------
 -- OSD
@@ -344,6 +374,7 @@ end component sigma_delta_dac;
 	signal c1541_iec_clk_i  : std_logic;
 
 	signal tv15Khz_mode   : std_logic;
+	signal ypbpr          : std_logic;
 	signal ntsc_init_mode : std_logic;
 
 	alias  c64_addr_int : unsigned is unsigned(c64_addr);
@@ -411,6 +442,7 @@ begin
 		status => status,
 		buttons => buttons,
 		scandoubler_disable => tv15Khz_mode,
+		ypbpr => ypbpr,
 
 		sd_lba => sd_lba,
 		sd_rd => sd_rd,
@@ -746,13 +778,31 @@ begin
 		vs_out => vsync_sd
 	);
 
-	VGA_R <= c64_ro when tv15Khz_mode='1' else r_sd;
-	VGA_G <= c64_go when tv15Khz_mode='1' else g_sd;
-	VGA_B <= c64_bo when tv15Khz_mode='1' else b_sd;
+	vm: video_mixer
+	port map(
+		scandoubler_disable => tv15Khz_mode,
+		ypbpr => ypbpr,
+		ypbpr_full => '1',
 
-	-- synchro composite/ synchro horizontale
-	VGA_HS <= not (hsync_out xor vsync_out) when tv15Khz_mode = '1' else not hsync_sd;
-	-- commutation rapide / synchro verticale
-	VGA_VS <= '1' when tv15Khz_mode = '1' else not vsync_sd;
+		r_i => c64_ro & c64_ro(5 downto 4),
+		g_i => c64_go & c64_go(5 downto 4),
+		b_i => c64_bo & c64_bo(5 downto 4),
+
+		hsync_i => hsync_out,
+		vsync_i => vsync_out,
+
+		r_p => r_sd & r_sd(5 downto 4),
+		g_p => g_sd & g_sd(5 downto 4),
+		b_p => b_sd & b_sd(5 downto 4),
+
+		hsync_p => hsync_sd,
+		vsync_p => vsync_sd,
+
+		VGA_R => VGA_R,
+		VGA_G => VGA_G,
+		VGA_B => VGA_B,
+		VGA_VS => VGA_VS,
+		VGA_HS => VGA_HS
+	);
 
 end struct;
