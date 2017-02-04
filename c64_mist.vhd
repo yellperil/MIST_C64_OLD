@@ -126,7 +126,7 @@ end component;
 ---------
 
 -- config string used by the io controller to fill the OSD
-constant CONF_STR : string := "C64;PRG;S1,D64;O2,Video standard,PAL,NTSC;O3,Joysticks,normal,swapped;O4,Scanlines,Off,On;O6,Audio filter,On,Off;T5,Reset;V0,v0.27.21";
+constant CONF_STR : string := "C64;PRG;S1,D64;O2,Video standard,PAL,NTSC;O8A,Scandoubler Fx,None,HQ2x-320,HQ2x-160,CRT 25%,CRT 50%;O3,Joysticks,normal,swapped;O6,Audio filter,On,Off;T5,Reset;V0,v0.27.30";
 
 -- convert string to std_logic_vector to be given to user_io
 function to_slv(s: string) return std_logic_vector is 
@@ -164,7 +164,7 @@ component mist_io generic(STRLEN : integer := 0 ); port
 	joystick_1        : out std_logic_vector(7 downto 0);
 	joystick_analog_0 : out std_logic_vector(15 downto 0);
 	joystick_analog_1 : out std_logic_vector(15 downto 0);
-	status            : out std_logic_vector(7 downto 0);
+	status            : out std_logic_vector(31 downto 0);
 
 	sd_lba            : in  std_logic_vector(31 downto 0);
 	sd_rd             : in  std_logic;
@@ -173,7 +173,7 @@ component mist_io generic(STRLEN : integer := 0 ); port
 	sd_ack_conf       : out std_logic;
 	sd_conf           : in  std_logic;
 	sd_sdhc           : in  std_logic;
-	sd_mounted        : out std_logic;
+	img_mounted       : out std_logic;
 	sd_buff_addr      : out std_logic_vector(8 downto 0);
 	sd_buff_dout      : out std_logic_vector(7 downto 0);
 	sd_buff_din       : in  std_logic_vector(7 downto 0);
@@ -188,40 +188,27 @@ component mist_io generic(STRLEN : integer := 0 ); port
 	ioctl_force_erase : in  std_logic;
 	ioctl_download    : out std_logic;
 	ioctl_erasing     : out std_logic;
-	ioctl_index       : out std_logic_vector(4 downto 0);
+	ioctl_index       : out std_logic_vector(7 downto 0);
 	ioctl_wr          : out std_logic;
 	ioctl_addr        : out std_logic_vector(24 downto 0);
 	ioctl_dout        : out std_logic_vector(7 downto 0)
 );
 end component mist_io;
 
+component video_mixer
+	generic ( LINE_LENGTH : integer := 512; HALF_DEPTH : integer := 0 );
+	port (
+			clk_sys, ce_pix, ce_pix_actual : in std_logic;
+			SPI_SCK, SPI_SS3, SPI_DI : in std_logic;
+			scanlines : in std_logic_vector(1 downto 0);
+			scandoubler_disable, hq2x, ypbpr, ypbpr_full : in std_logic;
 
-component video_mixer port
-(
-	scandoubler_disable : in  std_logic;
-	ypbpr               : in  std_logic;
-	ypbpr_full          : in  std_logic;
+			R, G, B : in std_logic_vector(5 downto 0);
+			HSync, VSync, line_start, mono : in std_logic;
 
-	r_i     : in std_logic_vector(7 downto 0);
-	g_i     : in std_logic_vector(7 downto 0);
-	b_i     : in std_logic_vector(7 downto 0);
-
-	hsync_i : in  std_logic;
-	vsync_i : in  std_logic;
-
-	r_p     : in std_logic_vector(7 downto 0);
-	g_p     : in std_logic_vector(7 downto 0);
-	b_p     : in std_logic_vector(7 downto 0);
-
-	hsync_p : in  std_logic;
-	vsync_p : in  std_logic;
-
-	VGA_R   : out std_logic_vector(5 downto 0);
-	VGA_G   : out std_logic_vector(5 downto 0);
-	VGA_B   : out std_logic_vector(5 downto 0);
-	VGA_VS  : out std_logic;
-	VGA_HS  : out std_logic
-);
+			VGA_R,VGA_G, VGA_B : out std_logic_vector(5 downto 0);
+			VGA_VS, VGA_HS : out std_logic
+	);
 end component video_mixer;
 
 ---------
@@ -304,7 +291,7 @@ end component sigma_delta_dac;
 	signal ioctl_wr: std_logic;
 	signal ioctl_addr: std_logic_vector(24 downto 0);
 	signal ioctl_data: std_logic_vector(7 downto 0);
-	signal ioctl_index: std_logic_vector(4 downto 0);
+	signal ioctl_index: std_logic_vector(7 downto 0);
 	signal ioctl_ram_addr: std_logic_vector(15 downto 0);
 	signal ioctl_ram_data: std_logic_vector(7 downto 0);
 	signal ioctl_load_addr: std_logic_vector(15 downto 0);
@@ -333,12 +320,11 @@ end component sigma_delta_dac;
 	signal c64_r  : std_logic_vector(5 downto 0);
 	signal c64_g  : std_logic_vector(5 downto 0);
 	signal c64_b  : std_logic_vector(5 downto 0);
-	signal c64_ro : std_logic_vector(5 downto 0);
-	signal c64_go : std_logic_vector(5 downto 0);
-	signal c64_bo : std_logic_vector(5 downto 0);
 
-	signal status : std_logic_vector(7 downto 0);
-
+	signal status         : std_logic_vector(31 downto 0);
+	signal scanlines      : std_logic_vector(1 downto 0);
+	signal hq2x           : std_logic;
+	signal ce_pix_actual  : std_logic;
 	signal sd_lba         : std_logic_vector(31 downto 0);
 	signal sd_rd          : std_logic;
 	signal sd_wr          : std_logic;
@@ -386,6 +372,8 @@ end component sigma_delta_dac;
 	signal clk32 : std_logic;
 	signal clk16 : std_logic;
 	signal ce_8  : std_logic;
+	signal ce_4  : std_logic;
+	signal hq2x160 : std_logic;
 	signal osdclk : std_logic;
 	signal clkdiv : std_logic_vector(9 downto 0);
 
@@ -398,15 +386,9 @@ end component sigma_delta_dac;
 	signal vsync : std_logic;
 	signal blank : std_logic;
 
-	signal r_sd  : std_logic_vector(5 downto 0);
-	signal g_sd  : std_logic_vector(5 downto 0);
-	signal b_sd  : std_logic_vector(5 downto 0);
+	signal old_vsync : std_logic;
 	signal hsync_out : std_logic;
 	signal vsync_out : std_logic;
-	signal hsync_osd : std_logic;
-	signal vsync_osd : std_logic;
-	signal hsync_sd : std_logic;
-	signal vsync_sd : std_logic;
 	
 	signal audio_data : std_logic_vector(17 downto 0);
 	
@@ -456,7 +438,7 @@ begin
 		sd_buff_dout => sd_buff_dout,
 		sd_buff_din => sd_buff_din,
 		sd_buff_wr => sd_buff_wr,
-		sd_mounted => sd_change,
+		img_mounted => sd_change,
 
 		ps2_kbd_clk => ps2_clk,
 		ps2_kbd_data => ps2_dat,
@@ -528,6 +510,11 @@ begin
 				ce_8 <= '1';
 			else
 				ce_8 <= '0';
+			end if;
+			if(clkdiv(2 downto 0) = "000") then
+				ce_4 <= '1';
+			else
+				ce_4 <= '0';
 			end if;
 		end if;
 	end process;
@@ -733,70 +720,51 @@ begin
 		blank => blank
 	);
 
-	-- route video through osd
-   osd_d : osd generic map (OSD_COLOR => "100")
-   port map 
-	(
-      clk_sys => clk32,
-		ce_pix  => ce_8,
-      SPI_SCK => SPI_SCK,
-      SPI_SS3 => SPI_SS3,
-      SPI_DI  => SPI_DI,
-
-      VGA_Rx  => c64_r,
-      VGA_Gx  => c64_g,
-      VGA_Bx  => c64_b,
-      OSD_HS  => hsync_out,
-      OSD_VS  => vsync_out,
-
-      VGA_R   => c64_ro,
-      VGA_G   => c64_go,
-      VGA_B   => c64_bo
-   );
-
 	c64_r <= (others => '0') when blank = '1' else std_logic_vector(r(7 downto 2));
 	c64_g <= (others => '0') when blank = '1' else std_logic_vector(g(7 downto 2));
 	c64_b <= (others => '0') when blank = '1' else std_logic_vector(b(7 downto 2));
+	
+	scanlines <= status(10 downto 9);
+	hq2x <= status(9) xor status(8);
+	ce_pix_actual <= ce_4 when hq2x160='1' else ce_8;
+	
+	process(clk32)
+	begin
+		if rising_edge(clk32) then
+			if((old_vsync = '0') and (vsync_out = '1')) then
+				if(status(10 downto 8)="010") then
+					hq2x160 <= '1';
+				else
+					hq2x160 <= '0';
+				end if;
+			end if;
+			old_vsync <= vsync_out;
+		end if;
+	end process;
 
-	sd: scandoubler
-	port map(
-		clk_sys => clk32,
-		ce_x2 => clk16,
-		ce_x1 => ce_8,
-		scanlines => '0' & status(4),
+	vmixer : video_mixer
+	port map (
+		clk_sys => clk_ram,
+		ce_pix  => ce_8,
+		ce_pix_actual => ce_pix_actual,
 
-		r_in => c64_ro,
-		g_in => c64_go,
-		b_in => c64_bo,
-		hs_in => hsync_out,
-		vs_in => vsync_out,
+		SPI_SCK => SPI_SCK, 
+		SPI_SS3 => SPI_SS3,
+		SPI_DI => SPI_DI,
 
-		r_out => r_sd,
-		g_out => g_sd,
-		b_out => b_sd,
-		hs_out => hsync_sd,
-		vs_out => vsync_sd
-	);
-
-	vm: video_mixer
-	port map(
+		scanlines => scanlines,
 		scandoubler_disable => tv15Khz_mode,
+		hq2x => hq2x,
 		ypbpr => ypbpr,
 		ypbpr_full => '1',
 
-		r_i => c64_ro & c64_ro(5 downto 4),
-		g_i => c64_go & c64_go(5 downto 4),
-		b_i => c64_bo & c64_bo(5 downto 4),
-
-		hsync_i => hsync_out,
-		vsync_i => vsync_out,
-
-		r_p => r_sd & r_sd(5 downto 4),
-		g_p => g_sd & g_sd(5 downto 4),
-		b_p => b_sd & b_sd(5 downto 4),
-
-		hsync_p => hsync_sd,
-		vsync_p => vsync_sd,
+		R => c64_r,
+		G => c64_g,
+		B => c64_b,
+		HSync => hsync_out,
+		VSync => vsync_out,
+		line_start => '0',
+		mono => '0',
 
 		VGA_R => VGA_R,
 		VGA_G => VGA_G,
