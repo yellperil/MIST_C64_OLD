@@ -1,8 +1,17 @@
-# MIST_C64
+# MIST_C64_OLD
 FPGA implementation of a Commodore 64
+=====================================
 
-Please forgive the dodgy coding as this was a work in progress and also my first verilog/vhdl coding experience.....
+This repository contains code from :
 
-The cartridge code was a simple redirection of the address bus....
+Peter Wendrich
+Sorgelig
+DarFPGA
+Braincell1973
 
-There are glaring problems with the source which i was in the progress of trying to solve, I suspect the CIA to be at fault and this fails most of the VICE CIA test programs....
+I've created this so you can see where code changes have been made for
+various updates using the diff function in git/github.
+
+Please use the MIST_C64 core as it contains the latest changes
+At least until a new champion arises to take on the challenge :-)
+
