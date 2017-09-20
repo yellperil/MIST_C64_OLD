@@ -89,7 +89,7 @@ component sdram is port
    init       : in    std_logic;
 
    -- cpu/chipset interface
-   addr       : in    std_logic_vector(15 downto 0);
+   addr       : in    std_logic_vector(24 downto 0);
    refresh    : in    std_logic;
    we         : in    std_logic;
    ce         : in    std_logic
@@ -126,7 +126,8 @@ end component;
 ---------
 
 -- config string used by the io controller to fill the OSD
-constant CONF_STR : string := "C64;PRG;S1,D64;O2,Video standard,PAL,NTSC;O8A,Scandoubler Fx,None,HQ2x-320,HQ2x-160,CRT 25%,CRT 50%;O3,Joysticks,normal,swapped;O6,Audio filter,On,Off;T5,Reset;V0,v0.27.30";
+--constant CONF_STR : string := "C64;PRG;S1,D64;O2,Video standard,PAL,NTSC;O8A,Scandoubler Fx,None,HQ2x-320,HQ2x-160,CRT 25%,CRT 50%;O3,Joysticks,normal,swapped;O6,Audio filter,On,Off;T5,Reset;V0,v0.27.30";
+constant CONF_STR : string := "C64;;F,PRGT64TAPCRT;S,D64;O2,Video standard,PAL,NTSC;O8A,Scandoubler Fx,None,HQ2x-320,HQ2x-160,CRT 25%,CRT 50%;O3,Joysticks,normal,swapped;O6,Audio filter,On,Off;T5,Reset;V0,v0.27.30";
 
 -- convert string to std_logic_vector to be given to user_io
 function to_slv(s: string) return std_logic_vector is 
@@ -185,14 +186,28 @@ component mist_io generic(STRLEN : integer := 0 ); port
 	ps2_mouse_clk     : out std_logic;
 	ps2_mouse_data    : out std_logic;
 
+	ioctl_load_address: out  std_logic_vector(24 downto 0); 
 	ioctl_force_erase : in  std_logic;
 	ioctl_download    : out std_logic;
 	ioctl_erasing     : out std_logic;
 	ioctl_index       : out std_logic_vector(7 downto 0);
 	ioctl_wr          : out std_logic;
 	ioctl_addr        : out std_logic_vector(24 downto 0);
-	ioctl_dout        : out std_logic_vector(7 downto 0)
-);
+	ioctl_dout        : out std_logic_vector(7 downto 0);
+	
+	reset_n				: in std_logic;
+	--CARTRIDGE SIGNALS - LCA
+
+	cart_id 				: out std_logic_vector(15 downto 0);					-- cart ID or cart type
+	cart_loadaddr 		: out std_logic_vector(15 downto 0);					-- 1st bank loading address
+	cart_bank_size 	: out std_logic_vector(15 downto 0);					-- length of each bank
+	cart_packet_length: out std_logic_vector(31 downto 0);					-- chip packet length (header & data)
+	cart_exrom			: out std_logic_vector(7 downto 0);						-- CRT file EXROM status
+	cart_game			: out std_logic_vector(7 downto 0);						-- CRT file GAME status
+	cart_attached		: out std_logic;												-- FLAG to say cart has been loaded
+	cartridge_reset	: out std_logic;												-- FLAG to reset once cartridge loaded
+	cart_detach_key	: in std_logic													-- cartridge detach key CTRL-D
+	);
 end component mist_io;
 
 component video_mixer
@@ -278,6 +293,44 @@ component sigma_delta_dac port
 
 end component sigma_delta_dac;
 
+
+--------------------------
+-- cartridge - LCA mar17 -
+--------------------------
+component cartridge port
+(
+		romL			: in std_logic;									-- romL signal in
+		romH			: in std_logic;									-- romH signal in
+		UMAXromH		: in std_logic;									-- VIC II ultimax read access flag
+		mem_write	: in std_logic;									-- memory write active
+		sdram_ce		: in std_logic;
+		sdram_we 	: in std_logic;
+		IOE			: in std_logic;									-- IOE signal &DE00
+		IOF			: in std_logic;									-- IOF signal &DF00
+		
+	 	clk32			: in std_logic;									-- 32mhz clock source
+		reset			: in std_logic;									-- reset signal
+--		CPU_hasbus	: in std_logic;									-- CPU has the bus strobe
+		
+		cart_id		: in std_logic_vector(15 downto 0);			-- cart ID or cart type
+		cart_loadaddr: in std_logic_vector(15 downto 0);		-- 1st bank loading address
+		cart_bank_size: in std_logic_vector(15 downto 0);		-- length of each bank
+		cart_packet_length: in std_logic_vector(31 downto 0);	-- chip packet length (header & data)
+		cart_exrom: in std_logic_vector(7 downto 0);				-- CRT file EXROM status
+		cart_game: in std_logic_vector(7 downto 0);				-- CRT file GAME status
+	 	cart_attached: in std_logic;									-- FLAG to say cart has been loaded
+
+		c64_mem_address_in: in std_logic_vector(15 downto 0);	-- address from cpu
+		c64_data_out: in std_logic_vector(7 downto 0);			-- data from cpu going to sdram
+
+		sdram_address_out: out std_logic_vector(24 downto 0); -- translated address output
+		exrom: out std_logic;											-- exrom line
+		game: out std_logic												-- game line
+
+);
+
+end component cartridge;
+
 	signal pll_locked_in: std_logic_vector(1 downto 0);
 	signal pll_locked: std_logic;
 	signal c1541_reset: std_logic;
@@ -292,9 +345,9 @@ end component sigma_delta_dac;
 	signal ioctl_addr: std_logic_vector(24 downto 0);
 	signal ioctl_data: std_logic_vector(7 downto 0);
 	signal ioctl_index: std_logic_vector(7 downto 0);
-	signal ioctl_ram_addr: std_logic_vector(15 downto 0);
+	signal ioctl_ram_addr: std_logic_vector(24 downto 0);
 	signal ioctl_ram_data: std_logic_vector(7 downto 0);
-	signal ioctl_load_addr: std_logic_vector(15 downto 0);
+	signal ioctl_load_address: std_logic_vector(24 downto 0);						--load address from mist.io LCA
 	signal ioctl_ram_wr: std_logic;
 	signal ioctl_iec_cycle_used: std_logic;
 	signal ioctl_force_erase: std_logic;
@@ -303,8 +356,30 @@ end component sigma_delta_dac;
 	signal c64_addr: std_logic_vector(15 downto 0);
 	signal c64_data_in: std_logic_vector(7 downto 0);
 	signal c64_data_out: std_logic_vector(7 downto 0);
-	signal sdram_addr: std_logic_vector(15 downto 0);
+	signal sdram_addr: std_logic_vector(24 downto 0);
 	signal sdram_data_out: std_logic_vector(7 downto 0);
+	
+	
+
+--	cartridge signals LCA
+	signal cart_id 				: std_logic_vector(15 downto 0);					-- cart ID or cart type
+	signal cart_loadaddr 		: std_logic_vector(15 downto 0);					-- 1st bank loading address
+	signal cart_bank_size 	: std_logic_vector(15 downto 0);						-- length of each bank
+	signal cart_packet_length: std_logic_vector(31 downto 0);					-- chip packet length (header & data)
+	signal cart_exrom			: std_logic_vector(7 downto 0);						-- CRT file EXROM status
+	signal cart_game			: std_logic_vector(7 downto 0);						-- CRT file GAME status
+	signal cart_attached		: std_logic;
+	signal game					: std_logic;												-- game line to cpu
+	signal exrom				: std_logic;												-- exrom line to cpu
+	signal IOE					: std_logic;												-- IOE signal
+	signal IOF					: std_logic;												-- IOF signal
+	signal cartridge_reset	: std_logic;												-- FLAG to reset once cart loaded
+	
+	signal romL				: std_logic;													-- cart romL from buslogic LCA
+	signal romH				: std_logic;													-- cart romH from buslogic LCA
+	signal UMAXromH		: std_logic;													-- VIC II Ultimax access - LCA
+	
+	signal CPU_hasbus		: std_logic;
 	
 	signal c1541rom_wr   : std_logic;
 	signal c64rom_wr     : std_logic;
@@ -316,6 +391,7 @@ end component sigma_delta_dac;
 	signal joyA_c64 : std_logic_vector(5 downto 0);
 	signal joyB_c64 : std_logic_vector(5 downto 0);
 	signal reset_key : std_logic;
+	signal cart_detach_key :std_logic;							-- cartridge detach key CTRL-D - LCA
 	
 	signal c64_r  : std_logic_vector(5 downto 0);
 	signal c64_g  : std_logic_vector(5 downto 0);
@@ -397,6 +473,10 @@ end component sigma_delta_dac;
 	
 	signal led_disk         : std_logic;
 
+-- temporary signal to extend c64_addr to 24bit	LCA
+		signal c64_addr_temp : std_logic_vector(24 downto 0);	
+	
+	
 begin
 
 	-- 1541 activity led
@@ -442,16 +522,64 @@ begin
 
 		ps2_kbd_clk => ps2_clk,
 		ps2_kbd_data => ps2_dat,
-		
+
+		ioctl_load_address => ioctl_load_address,								--load address from mist.io LCA
 		ioctl_download => ioctl_download,
 		ioctl_force_erase => ioctl_force_erase,
 		ioctl_erasing => ioctl_erasing,
 		ioctl_index => ioctl_index,
 		ioctl_wr => ioctl_wr,
 		ioctl_addr => ioctl_addr,
-		ioctl_dout => ioctl_data
-	);
+		ioctl_dout => ioctl_data,
+		
+		reset_n => reset_n,
+-- CRT lines from mist.io LCA
+		cart_detach_key => cart_detach_key,										-- cartridge detach key CTRL-D
+		cart_id => cart_id,															-- cart ID or cart type
+		cart_loadaddr => cart_loadaddr,											-- 1st bank loading address	
+		cart_bank_size => cart_bank_size,										-- length of each bank
+		cart_packet_length => cart_packet_length,								-- chip packet length (header & data)
+		cart_exrom => cart_exrom,													-- CRT file EXROM status
+		cart_game => cart_game,														-- CRT file GAME status
+		cart_attached => cart_attached,
+		cartridge_reset => cartridge_reset										-- cartridge reset signal after load from MIST.IO
+);
 
+	
+	
+	cart : cartridge
+	port map (
+		romL => romL,		
+		romH => romH,	
+		UMAXromH => UMAXromH,
+		IOE => IOE,
+		IOF => IOF,
+		mem_write => sdram_we,	
+		sdram_ce => sdram_ce,
+		sdram_we => sdram_we,
+	 	clk32 => clk32,			
+		reset => reset_n,
+		
+--		CPU_hasbus	=> CPU_hasbus,
+		
+		cart_id => cart_id,		
+		cart_loadaddr => cart_loadaddr,
+		cart_bank_size => cart_bank_size,
+		cart_packet_length => cart_packet_length,
+		cart_exrom => cart_exrom,
+		cart_game => cart_game,
+	 	cart_attached => cart_attached,
+		
+		c64_mem_address_in => c64_addr,
+		c64_data_out => c64_data_out,
+		
+		sdram_address_out => c64_addr_temp,
+		exrom	=> exrom,							
+		game => game
+		
+	);
+	
+	
 	-- rearrange joystick contacta for c64
 	joyA_int <= "0" & joyA(4) & joyA(0) & joyA(1) & joyA(2) & joyA(3);
 	joyB_int <= "0" & joyB(4) & joyB(0) & joyB(1) & joyB(2) & joyB(3);
@@ -460,9 +588,15 @@ begin
 	joyA_c64 <= joyB_int when status(3)='1' else joyA_int;
 	joyB_c64 <= joyA_int when status(3)='1' else joyB_int;
 
+-- temporary signal to extend c64_addr to 24bit	LCA - now being used to route cart addr
+--c64_addr_temp <= "000000000" & c64_addr;
+	
 	-- multiplex ram port between c64 core and data_io (io controller dma)
-	sdram_addr <= c64_addr when iec_cycle='0' else ioctl_ram_addr;
+--	sdram_addr <= c64_addr_temp when iec_cycle='0' else ioctl_ram_addr; -- old line lca
+	sdram_addr <= c64_addr_temp when iec_cycle='0' else ioctl_ram_addr; -- old line lca
+--	sdram_addr <= c64_addr_out when iec_cycle='0' else ioctl_ram_addr;
 	sdram_data_out <= c64_data_out when iec_cycle='0' else ioctl_ram_data;
+	
 	-- ram_we and ce are active low
 	sdram_ce <= not ram_ce when iec_cycle='0' else ioctl_iec_cycle_used;
 	sdram_we <= not ram_we when iec_cycle='0' else ioctl_iec_cycle_used;
@@ -476,7 +610,7 @@ begin
 			if(iec_cycle='1' and iec_cycleD='0' and ioctl_ram_wr='1') then
 				ioctl_ram_wr <= '0';
 				ioctl_iec_cycle_used <= '1';
-				ioctl_ram_addr <= std_logic_vector(unsigned(ioctl_load_addr) + unsigned(ioctl_addr(15 downto 0)) - 2);
+				ioctl_ram_addr <= std_logic_vector(unsigned(ioctl_load_address) + unsigned(ioctl_addr));
 				ioctl_ram_data <= ioctl_data;
 			else 
 				if(iec_cycle='0') then
@@ -485,15 +619,7 @@ begin
 			end if;
 
 			if ioctl_wr='1' and ((ioctl_index /=X"0") or (ioctl_erasing = '1')) then
-				if(ioctl_addr = 0) then
-					ioctl_load_addr(7 downto 0) <= ioctl_data;
-				elsif(ioctl_addr = 1) then
-					ioctl_load_addr(15 downto 8) <= ioctl_data;
-				else 
-					-- io controller sent a new byte. Store it until it can be
-					--	saved in RAM
 					ioctl_ram_wr <= '1';
-				end if;
 			end if;
 		end if;
 	end process;
@@ -539,7 +665,8 @@ begin
 			if status(0)='1' or pll_locked = '0' then
 				reset_counter <= 1000000;
 				reset_n <= '0';
-			elsif buttons(1)='1' or status(5)='1' or reset_key = '1' then
+			-- Or now by cartridge loading routine in mist.io.v or cartridge detach key CTRL-D - LCA
+			elsif buttons(1)='1' or status(5)='1' or reset_key = '1' or cartridge_reset = '1'  or cart_detach_key = '1' then
 				reset_counter <= 255;
 				reset_n <= '0';
 			elsif ioctl_download ='1' then
@@ -585,6 +712,7 @@ begin
 		ce => sdram_ce
 	);
 
+
 	-- decode audio
    dac_l : sigma_delta_dac
    port map (
@@ -619,11 +747,21 @@ begin
 		r => r,
 		g => g,
 		b => b,
-		game => '1',
-		exrom => '1',
+--		game => '1',
+--		exrom => '1',
+		game => game,
+		exrom => exrom,
+		UMAXromH => UMAXromH,
+		CPU_hasbus => CPU_hasbus,
+		
+		
 		irq_n => '1',
 		nmi_n => '1',
 		dma_n => '1',
+		romL => romL,										-- cart signals LCA
+		romH => romH,										-- cart signals LCA
+		IOE => IOE,											-- cart signals LCA										
+		IOF => IOF,											-- cart signals LCA
 		ba => open,
 		joyA => unsigned(joyA_c64),
 		joyB => unsigned(joyB_c64),
@@ -644,6 +782,7 @@ begin
 		c64rom_addr => ioctl_addr(13 downto 0),
 		c64rom_data => ioctl_data,
 		c64rom_wr => c64rom_wr,
+		cart_detach_key => cart_detach_key,									-- cartridge detach key CTRL-D - LCA
 		reset_key => reset_key
 	);
 

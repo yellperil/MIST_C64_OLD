@@ -61,8 +61,8 @@ module mist_io #(parameter STRLEN=0, parameter PS2DIV=100)
 	// SD config
 	input             sd_conf,
 	input             sd_sdhc,
-	output            img_mounted, // signaling that new image has been mounted
-	output reg [31:0] img_size,    // size of image in bytes
+	output            img_mounted, 				// signaling that new image has been mounted
+	output reg [31:0] img_size,    				// size of image in bytes
 
 	// SD block level access
 	input      [31:0] sd_lba,
@@ -86,13 +86,29 @@ module mist_io #(parameter STRLEN=0, parameter PS2DIV=100)
 
 	// ARM -> FPGA download
 	input             ioctl_force_erase,
-	output reg        ioctl_download = 0, // signal indicating an active download
-	output reg        ioctl_erasing = 0,  // signal indicating an active erase
-	output reg  [7:0] ioctl_index,        // menu index used to upload the file
+	output reg        ioctl_download = 0, 		// signal indicating an active download
+	output reg        ioctl_erasing = 0,  		// signal indicating an active erase
+	output reg  [7:0] ioctl_index,        		// menu index used to upload the file
 	output reg        ioctl_wr = 0,
 	output reg [24:0] ioctl_addr,
-	output reg  [7:0] ioctl_dout
+	output reg  [7:0] ioctl_dout,
+	output reg			ioctl_download_active,	//flag to start download after load address aquired lca 
+   output reg [15:0] ioctl_load_address,		// loading address for PRG & T64 files
+	
+	input 				reset_n,						// MAIN RESET SIGNAL
+	
+	//CARTRIDGE SIGNALS - LCA
+	input 				cart_detach_key,			// CTRL-D from keyboard
+	output reg [15:0] cart_id ,					// cart ID or cart type
+	output reg [15:0] cart_loadaddr ,			// 1st bank loading address	
+	output reg [15:0] cart_bank_size ,			// length of each bank
+	output reg [31:0] cart_packet_length ,		// chip packet length (header & data)
+	output reg [7:0] cart_exrom ,					// CRT file EXROM status
+	output reg [7:0] cart_game ,					// CRT file GAME status
+	output reg cart_attached = 0	,				// FLAG to say cart has been loaded
+	output reg  cartridge_reset = 0					// Cartridge reset flag once cart has been loaded
 );
+
 
 reg [7:0] b_data;
 reg [6:0] sbuf;
@@ -103,6 +119,9 @@ reg [7:0] but_sw;
 reg [2:0] stick_idx;
 
 reg    mount_strobe = 0;
+
+reg [2:0] cart_reset = 'b00; 							// cartridge reset after load state machine
+
 assign img_mounted  = mount_strobe;
 
 assign buttons = but_sw[1:0];
@@ -416,13 +435,17 @@ end
 
 ///////////////////////////////   DOWNLOADING   ///////////////////////////////
 
+
+
 reg  [7:0] data_w;
 reg [24:0] addr_w;
 reg        rclk   = 0;
+reg cart_load_strobe = 0;
 
 localparam UIO_FILE_TX      = 8'h53;
 localparam UIO_FILE_TX_DAT  = 8'h54;
 localparam UIO_FILE_INDEX   = 8'h55;
+//localparam UIO_FILE_INFO    = 8'h56;													// gonna try this - lca
 
 // data_io has its own SPI interface to the io controller
 always@(posedge SPI_SCK, posedge SPI_SS2) begin
@@ -430,7 +453,10 @@ always@(posedge SPI_SCK, posedge SPI_SS2) begin
 	reg  [7:0] cmd;
 	reg  [4:0] cnt;
 	reg [24:0] addr;
-
+   reg [31:0] offset_into_t64;
+   reg [15:0] t64_end_address;															// end adress in t64 for calc prg length	
+   reg [15:0] t64_prg_filesize;															// calculated filesize
+	
 	if(SPI_SS2) cnt <= 0;
 	else begin
 		rclk <= 0;
@@ -453,7 +479,19 @@ always@(posedge SPI_SCK, posedge SPI_SS2) begin
 		if((cmd == UIO_FILE_TX) && (cnt == 15)) begin
 			// prepare 
 			if(SPI_DI) begin
-				addr <= 0;
+//				addr_total_size <= addr;														//get received file size (bytes)
+						case(ioctl_index[7:0]) 
+							0: addr <= 25'h0;   	  // C64.ROM LOAD at 0x0000 
+							1: addr <= 25'h000000; // PRG injection using load address
+						  65: addr <= 25'h000000; // T64 injection using load address
+						 129: addr <= 25'h200000; // TAP buffer at 2MB
+						 193: addr <= 25'h100000; // CRT buffer at 1MB
+//do not use							2: addr <= 25'h200000; // tape buffer at 2MB 
+//							default: addr <= 25'h0; // boot rom (UNKNOWN)
+						endcase
+//				addr <= 0;
+//				ioctl_load_address <= 0;
+				ioctl_download_active <= 0;
 				ioctl_download <= 1; 
 			end else begin
 				addr_w <= addr;
@@ -463,15 +501,252 @@ always@(posedge SPI_SCK, posedge SPI_SS2) begin
 
 		// command 0x54: UIO_FILE_TX
 		if((cmd == UIO_FILE_TX_DAT) && (cnt == 15)) begin
-			addr_w <= addr;
-			data_w <= {sbuf, SPI_DI};
-			rclk <= 1;
-		end
+			if (ioctl_index[7:0] == 193) begin                                   // CRT File selected
+				ioctl_load_address <= 0;														// load at 0x100000 (1mb)
+				ioctl_download_active <= 1;
+				if(addr == 25'h100016) cart_id[15:8] <= {sbuf, SPI_DI};							// HI byte of crt file type
+				if(addr == 25'h100017) cart_id[7:0] <= {sbuf, SPI_DI};							// LO byte of crt file type
+				if(addr == 25'h100018) cart_exrom[7:0] <= {sbuf, SPI_DI};						// EXROM byte of crt file type
+				if(addr == 25'h100019) cart_game[7:0] <= {sbuf, SPI_DI};							// GAME byte of crt file type	
+				if(addr == 25'h100044) cart_packet_length [31:24] <= {sbuf, SPI_DI};			// chip packet length (header & data) highbyte
+				if(addr == 25'h100045) cart_packet_length [23:16] <= {sbuf, SPI_DI};			// chip packet length (header & data)
+				if(addr == 25'h100046) cart_packet_length [15:8] <= {sbuf, SPI_DI};			// chip packet length (header & data)
+				if(addr == 25'h100047) cart_packet_length [7:0] <= {sbuf, SPI_DI};			// chip packet length (header & data) lowbyte
+				if(addr == 25'h10004C) cart_loadaddr [15:8] <= {sbuf, SPI_DI};					// HI byte of 1st CHIP load address
+				if(addr == 25'h10004D) cart_loadaddr [7:0] <= {sbuf, SPI_DI};					// LO byte of 1st CHIP load address
+				if(addr == 25'h10004E) cart_bank_size [15:8] <= {sbuf, SPI_DI};				// rom image length highbyte
+				if(addr == 25'h10004F) cart_bank_size [7:0] <= {sbuf, SPI_DI};					// rom image length low byte
 
+				addr_w <= addr;
+				data_w <= {sbuf, SPI_DI};
+				rclk <= 1;
+				
+//				if (addr >= 25'h102049) cart_attached <= 1;											// cartridge attached signal TEMP LCA
+//				else	
+//				cart_attached <= 0;
+			
+				if(addr >= 25'h100000 && addr <= 25'h102049) 
+				cart_load_strobe <= 1'b1;																	// cart load strobe high for x addresses
+				else																								// low for rest of load 
+				cart_load_strobe <= 1'b0;																	// for auto reset routine - LCA
+						
+			end
+
+			if (ioctl_index[7:0] == 129) begin                                   // TAP File selected
+				ioctl_load_address <= 0;														// load at 0x200000 (2mb)
+				addr_w <= addr;
+				data_w <= {sbuf, SPI_DI};
+//				if (addr < 128) header_buffer[addr] <= data_w;  						// 128 byte buffer for header info 
+				ioctl_download_active <= 1;
+				rclk <= 1;
+			end
+
+			if (ioctl_index[7:0] == 65) begin                                    // T64 File selected
+//				if (addr < 128) header_buffer[addr] <= {sbuf, SPI_DI};  				// 128 byte buffer for header info 
+//				if (addr == 64 && {sbuf, SPI_DI} == 0)										// T64 type
+				if (addr == 66) ioctl_load_address [7:0] <= {sbuf, SPI_DI};			// 66th byte is load address1
+				if (addr == 67) ioctl_load_address [15:8] <= {sbuf, SPI_DI};		// 67th byte is load address2
+				if (addr == 68) t64_end_address [7:0] <= {sbuf, SPI_DI};				// 68th byte is end address1
+				if (addr == 69) t64_end_address [15:8] <= {sbuf, SPI_DI};		   // 69th byte is end address2								
+				if (addr == 72) offset_into_t64 [7:0] <= {sbuf, SPI_DI};				// 72nd byte is t64 start address1
+				if (addr == 73) offset_into_t64 [15:8] <= {sbuf, SPI_DI};			// 73rd byte is t64 start address2
+				if (addr == 74) offset_into_t64 [23:16] <= {sbuf, SPI_DI};			// 74th byte is t64 start address3
+				if (addr == 75) offset_into_t64 [31:24] <= {sbuf, SPI_DI};			// 75th byte is t64 start address4
+
+				if (addr > 69) t64_prg_filesize <= t64_end_address - ioctl_load_address;  //total filesize to be loaded
+
+				if (addr > 75 && addr >= offset_into_t64) begin
+					addr_w <= addr - offset_into_t64;
+					data_w <= {sbuf, SPI_DI};
+					if(addr <= offset_into_t64 + t64_prg_filesize + 'd1) 
+					ioctl_download_active <= 1;
+					else
+					ioctl_download_active <= 0;
+				end				
+					rclk <= 1;
+			end
+
+ 			if (ioctl_index[7:0] == 1) begin                                     // PRG File selected
+				if (addr == 0) ioctl_load_address [7:0] <= {sbuf, SPI_DI};			// 1st byte is load address1
+				if (addr == 1) ioctl_load_address [15:8] <= {sbuf, SPI_DI};			// 2nd byte is load address2
+				if (addr >= 2) begin
+					addr_w <= addr - 'd2;
+					data_w <= {sbuf, SPI_DI};
+					ioctl_download_active <= 1;
+//					rclk <= 1;
+				end
+					rclk <= 1;
+			end
+
+			if (ioctl_index[7:0] == 0) begin                                     // ROM File selected
+				ioctl_load_address <= 0 ;
+				ioctl_download_active <= 1;
+					addr_w <= addr ;
+					data_w <= {sbuf, SPI_DI};
+//					ioctl_download_active <= 1;
+					rclk <= 1;
+			end
+
+//original loading routine start
+//			addr_w <= addr;
+//			data_w <= {sbuf, SPI_DI};
+//			if (addr < 128) header_buffer[addr] <= data_w;  							// 128 byte buffer for header info 
+//			rclk <= 1;
+	end
+//original loading routine end
+		
+		
       // expose file (menu) index
       if((cmd == UIO_FILE_INDEX) && (cnt == 15)) ioctl_index <= {sbuf, SPI_DI};
+
 	end
 end
+
+
+
+
+				
+		
+		// Lets do a RESET once a cart has been loaded
+		// How do we know when its loaded ???
+		// No filesize 1st so has to be a timeout from transmission !!
+		// oh, mister state machine.......
+				
+localparam INIT = 2'd0,
+				S1	= 2'd1,
+				S2 = 2'd2,
+				S3 = 2'd3;
+				
+				
+				
+reg [31:0] count = 'hFFFFFF;
+
+reg [1:0] current_state = INIT; 
+reg [1:0] next_state = INIT;
+	
+always@(posedge clk_sys) begin
+if(!reset_n) begin
+	current_state <= INIT;
+	end
+else
+	begin
+	current_state <= next_state;
+	#1 OLD_attach_state <= attach_state;         // #1 DELAY neccesary for RESET - LCA
+	end
+end
+
+always@(*)
+begin
+next_state = current_state;
+
+case(current_state)
+	INIT: begin							// State 1 - clear vars and wait for download to start
+//			count = 'hFFFFFF;
+//			cartridge_reset = 0;
+			if(cart_load_strobe) 
+				next_state = S1;
+		end
+	S1: begin							// State 2 - download counter logic
+			if(count == 'd0) 
+				next_state = S2;			
+			
+//			if(rclk && clk_sys)
+//				count = 'hFFFFFF;			// still clocking bytes keep counter topped up
+//			else	
+//				if(count >= 1) 
+//				count = count - 1'd1;	// NO BYTE ?? start countdown
+		end
+	S2: begin							// State 3 - cart loaded 
+//			count = 'hFFFFFF;	
+			next_state = S3;
+		end
+	S3: begin							// State 4 - RESET me baby!!!!		
+//			count = 'hFFFFFF;
+//			cartridge_reset = 1;
+			next_state = INIT;
+		end
+
+default: begin
+//			count = 'hFFFFFF;	
+			next_state = INIT;	
+			end
+endcase
+
+end
+
+
+// state machine 1 bit outputs
+
+//assign cartridge_reset = (current_state == 2'b11) ? 1 : 0;
+always@(posedge clk_sys)
+begin
+	if(current_state == S3)
+		cartridge_reset <= 1'b1;
+	else
+		cartridge_reset <= 1'b0;
+		
+	if(current_state == S1)
+		begin
+				if(rclk)
+				count = 'hFFFFFF;			// still clocking bytes keep counter topped up
+			else	
+				if(count >= 1) 
+				count = count - 1'd1;	// NO BYTE ?? start countdown	
+		end
+end
+
+
+// cart attach / detach handling
+
+reg attach_state = 1'b0;
+reg OLD_attach_state = 1'b0;
+
+always @(*)
+begin
+attach_state = OLD_attach_state;
+case(OLD_attach_state)
+	0:begin
+		cart_attached = 0;
+		if(current_state == S2)
+			attach_state = 1'b1;
+		end
+	1:begin
+		cart_attached = 1;
+		if(cart_detach_key || current_state == S1)
+			attach_state = 1'b0;
+		end
+	default:attach_state = 0;
+endcase
+end
+
+
+/*
+always@(posedge clk_sys)
+begin
+	OLD_attach_state <= attach_state;
+
+	if(OLD_attach_state == 1'b0)
+		begin
+		cart_attached <= 1'b0;
+		if(current_state == S2)
+			attach_state <= 1'b1;
+		end
+	if(OLD_attach_state == 1'b1)
+		begin
+		cart_attached <= 1'b1;
+		if(cart_detach_key || current_state == S1)
+			attach_state <= 1'b0;
+		end
+end
+*/
+
+
+
+
+
+
+
+
 
 reg  [24:0] erase_mask;
 wire [24:0] next_erase = (ioctl_addr + 1'd1) & erase_mask;
@@ -487,9 +762,11 @@ always@(posedge clk_sys) begin
 	ioctl_wr <= 0;
 
 	if(rclkD & ~rclkD2) begin
-		ioctl_dout <= data_w;
+		if(ioctl_download_active)begin													// ready to download after getting load address
+		ioctl_dout <= data_w;																// ioctl_download_active - LCA
 		ioctl_addr <= addr_w;
 		ioctl_wr   <= 1;
+		end
 	end
 
 	if(ioctl_download) begin
@@ -517,5 +794,6 @@ always@(posedge clk_sys) begin
 		end
 	end
 end
+
 
 endmodule

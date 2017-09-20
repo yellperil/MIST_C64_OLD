@@ -43,6 +43,7 @@ entity fpga64_sid_iec is
 		kbd_clk     : in  std_logic;
 		kbd_dat     : in  std_logic;
 		reset_key   : out std_logic;
+		cart_detach_key : out std_logic;
 
 		-- external memory
 		ramAddr     : out unsigned(15 downto 0);
@@ -69,6 +70,12 @@ entity fpga64_sid_iec is
 		nmi_n       : inout std_logic;
 		dma_n       : in  std_logic;
 		ba          : out std_logic;
+		romL			: out std_logic;													-- cart signals LCA
+		romH			: out std_logic;													-- cart signals LCA
+      UMAXromH 	: out std_logic;													-- cart signals LCA
+		IOE			: out std_logic;													-- cart signals LCA
+		IOF			: out std_logic;													-- cart signals LCA
+		CPU_hasbus  : out std_logic;													-- CPU has the bus STROBE
 
 		-- joystick interface
 		joyA        : in  unsigned(5 downto 0);
@@ -154,16 +161,17 @@ architecture rtl of fpga64_sid_iec is
 	signal cs_cia1: std_logic;
 	signal cs_cia2: std_logic;
 	signal cs_ram: std_logic;
-	signal cs_ioE: std_logic;
-	signal cs_ioF: std_logic;
+   signal cs_ioE: std_logic;
+   signal cs_ioF: std_logic;	
 	signal cs_romL: std_logic;
 	signal cs_romH: std_logic;
-
+	signal cs_UMAXromH: std_logic;							-- romH VIC II read flag
+	
 	signal reset: std_logic := '1';
 	signal reset_cnt: integer range 0 to resetCycles := 0;
 
 	signal bankSwitch: unsigned(2 downto 0);
-
+	
 	-- SID signals
 	signal sid_do : std_logic_vector(7 downto 0);
 
@@ -412,6 +420,7 @@ begin
 		cs_ioF => cs_ioF,
 		cs_romL => cs_romL,
 		cs_romH => cs_romH,
+		cs_UMAXromH => cs_UMAXromH,
 
 		c64rom_addr => c64rom_addr,
 		c64rom_data => c64rom_data,
@@ -652,7 +661,7 @@ begin
 			trace2Key => trace2Key,
 			reset_key => reset_key,
 			restore_key => restore_key,
-
+			cart_detach_key => cart_detach_key,					-- cartridge detach key CTRL-D - LCA
 			disk_num => disk_num,
 			
 			backwardsReadingEnabled => '1'
@@ -789,4 +798,15 @@ begin
 -- Dummy silence audio output
 -- -----------------------------------------------------------------------
 	still <= X"4000";
+	
+	
+-- -----------------------------------------------------------------------
+-- Cartridge port lines LCA
+-- -----------------------------------------------------------------------
+	romL <= cs_romL;
+	romH <= cs_romH;
+	IOE <= cs_ioE;
+	IOF <= cs_ioF;
+	UMAXromH <= cs_UMAXromH;
+	CPU_hasbus <= cpuHasBus;
 end architecture;

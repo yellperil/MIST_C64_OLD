@@ -54,6 +54,8 @@ entity fpga64_keyboard_matrix is
 		trace2Key : out std_logic;
 		disk_num : out std_logic_vector(7 downto 0);
 		
+		cart_detach_key : out std_logic;			-- CTRL D - remove active cartridge signal - LCA
+		
 		-- Config
 		-- backwardsReadingEnabled = 1 allows reversal of PIA registers to still work.
 		-- not needed for kernel/normal operation only for some specific programs.
@@ -359,6 +361,7 @@ begin
 			videoKey <= '0';
 			joySelKey <= '0';
 			diskChgKey <= '0';
+			cart_detach_key <= '0';
 			if newScanCode = '1' then
 				if theScanCode=X"F0" then
 					releaseFlag <= '1';		
@@ -400,7 +403,14 @@ begin
 					when X"1E" => key_2 <= not releaseFlag; 
 					when X"21" => key_C <= not releaseFlag; 
 					when X"22" => key_X <= not releaseFlag; 
-					when X"23" => key_D <= not releaseFlag; 
+					when X"23" =>  -- key_D - if CTRL-D the detach cartridge else its a "D" - LCA												
+						if key_ctrl = '1' then
+							cart_detach_key <= '1';
+						else
+--							if releaseFlag = '0' then
+								key_D <= not releaseFlag;
+--							end if;
+						end if;	
 					when X"24" => key_E <= not releaseFlag; 
 					when X"25" => key_4 <= not releaseFlag; 
 					when X"26" => key_3 <= not releaseFlag; 
